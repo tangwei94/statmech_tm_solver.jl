@@ -1,5 +1,23 @@
 module statmech_tm_solver
 
 # Write your package code here.
+__precompile__(true)
+
+using LinearAlgebra
+using Zygote
+using Optim
+using Random
+using KrylovKit
+using TensorKit
+using TensorOperations
+using FiniteDifferences
+
+using ChainRules
+using ChainRulesCore
+import ChainRulesCore: rrule, frule
+
+export act
+
+include("imps.jl")
 
 end
