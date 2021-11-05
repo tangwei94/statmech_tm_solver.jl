@@ -19,5 +19,6 @@ import ChainRulesCore: rrule, frule
 export act
 
 include("imps.jl")
+include("utils.jl")
 
 end
