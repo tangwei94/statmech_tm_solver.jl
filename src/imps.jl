@@ -26,3 +26,19 @@ function rrule(::typeof(act), T::TensorMap{ComplexSpace, 2, 2}, psi::TensorMap{C
     end
     return fwd, act_pushback
 end
+
+function transf_mat(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexSpace, 2, 1})
+    function lop(v::TensorMap{ComplexSpace, 1, 1})
+        @tensor result[-2; -1] := psi'[1, -1, 3] * phi[-2, 3, 2] * v[2, 1]
+        return result
+    end
+    return lop
+end
+
+function transf_mat_T(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexSpace, 2, 1})
+    function lop_T(v::TensorMap{ComplexSpace, 1, 1})
+        @tensor result[-1; -2] := psi'[-1, 1, 3] * phi[2, 3, -2] * v[1, 2]
+        return result
+    end
+    return lop_T
+end

@@ -9,10 +9,5 @@ using FiniteDifferences
 using Zygote
 
 
-@testset "imps.jl" begin
-    include("test_imps.jl")
-end
-
-@testset "utils.jl" begin
-    include("test_utils.jl")
-end
+include("test_imps.jl")
+include("test_utils.jl")

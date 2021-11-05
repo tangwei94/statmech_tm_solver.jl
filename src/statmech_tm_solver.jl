@@ -16,7 +16,11 @@ using ChainRules
 using ChainRulesCore
 import ChainRulesCore: rrule, frule
 
-export act
+export  act,
+        transf_mat,
+        transf_mat_T
+
+export  toarray
 
 include("imps.jl")
 include("utils.jl")

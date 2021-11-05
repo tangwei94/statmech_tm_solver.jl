@@ -8,3 +8,9 @@ function rrule(::typeof(dot), t1::TensorMap{ComplexSpace}, t2::AbstractTensorMap
     end
     return fwd, dot_pushback
 end
+
+function toarray(t::TensorMap{ComplexSpace})
+    @inline tuplejoin(x, y) = (x..., y...)
+    t_dims = tuplejoin(dims(codomain(t)), dims(domain(t)))
+    return reshape(t.data, t_dims)
+end
