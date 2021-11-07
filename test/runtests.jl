@@ -8,7 +8,8 @@ using OMEinsum
 using FiniteDifferences
 using Zygote
 using LinearAlgebra
-
+using KrylovKit
+using TensorOperations
 
 include("test_imps.jl")
 include("test_utils.jl")

@@ -10,7 +10,6 @@ using Random
 using KrylovKit
 using TensorKit
 using TensorOperations
-using FiniteDifferences
 
 using ChainRules
 using ChainRulesCore
@@ -20,7 +19,12 @@ export  act,
         transf_mat,
         transf_mat_T,
         ovlp,
-        nonherm_cost_func
+        nonherm_cost_func,
+        lambda_gamma,
+        iTEBD_truncate,
+        ln_fidelity,
+        ln_free_energy,
+        mps_add
 
 export  toarray,
         get_chi,
