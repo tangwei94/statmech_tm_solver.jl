@@ -19,7 +19,8 @@ import ChainRulesCore: rrule, frule
 export  act,
         transf_mat,
         transf_mat_T,
-        ovlp
+        ovlp,
+        nonherm_cost_func
 
 export  toarray,
         get_chi,

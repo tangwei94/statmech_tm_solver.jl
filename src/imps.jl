@@ -1,4 +1,3 @@
-
 function act(T::TensorMap{ComplexSpace, 2, 2}, psi::TensorMap{ComplexSpace, 2, 1})
     chi = dim(psi.dom)
     fuse_tensor = isomorphism(ℂ^(chi*2), ℂ^2*ℂ^chi)
@@ -65,4 +64,14 @@ function rrule(::typeof(ovlp), psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMa
         return NoTangent(), psi_pushback, phi_pushback
     end
     return fwd, ovlp_pushback
+end
+
+function nonherm_cost_func(T::TensorMap{ComplexSpace, 2, 2}, psi_arr::Array{ComplexF64, 3})
+    psi = arr_to_TensorMap(psi_arr)
+    Tpsi = act(T, psi) 
+
+    up = ovlp(Tpsi, Tpsi) * ovlp(psi, psi)
+    dn = ovlp(psi, Tpsi) * ovlp(Tpsi, psi)
+
+    return log(real(up / dn))
 end
