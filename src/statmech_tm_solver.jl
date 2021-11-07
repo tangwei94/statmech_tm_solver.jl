@@ -18,9 +18,12 @@ import ChainRulesCore: rrule, frule
 
 export  act,
         transf_mat,
-        transf_mat_T
+        transf_mat_T,
+        ovlp
 
-export  toarray
+export  toarray,
+        get_chi,
+        arr_to_TensorMap
 
 include("imps.jl")
 include("utils.jl")

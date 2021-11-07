@@ -7,6 +7,7 @@ using TensorKit
 using OMEinsum
 using FiniteDifferences
 using Zygote
+using LinearAlgebra
 
 
 include("test_imps.jl")

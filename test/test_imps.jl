@@ -47,22 +47,45 @@ end
 @timedtestset "test transf_mat constructions ($ix)" for ix in 1:5
     psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)
     phi = TensorMap(rand, ComplexF64, ℂ^6*ℂ^2, ℂ^6)
-    vr = TensorMap(rand, ComplexF64, ℂ^6, ℂ^5)
-    vl = TensorMap(rand, ComplexF64, ℂ^5, ℂ^6)
+    v = TensorMap(rand, ComplexF64, ℂ^6, ℂ^5)
     lop = transf_mat(psi, phi)
     lop_T = transf_mat_T(psi, phi)
-
+    
     psi_arr = toarray(psi)
     phi_arr = toarray(phi)
-    vr_arr = toarray(vr)
-    vl_arr = toarray(vl)
+    v_arr = toarray(v)
     lop_arr = ein"aec,bed->abcd"(conj.(psi_arr), phi_arr)
-
-    lop_vr = ein"abcd,dc->ba"(lop_arr, vr_arr)
-    lopT_vl = ein"abcd,ab->cd"(lop_arr, vl_arr)
-
-    @test lop_vr ≈ lop(vr) |> toarray
-    @test lopT_vl ≈ lop_T(vl) |> toarray
+    
+    lop_v = ein"abcd,dc->ba"(lop_arr, v_arr)
+    lopT_v = ein"abcd,ba->dc"(conj.(lop_arr), v_arr)
+    
+    lop_T(v)
+    
+    @test lop_v ≈ lop(v) |> toarray
+    @test lopT_v ≈ lop_T(v) |> toarray
 end
 
+@timedtestset "test ovlp and its rrule" for ix in 1:5
+    function ovlp_von_arr(psi_arr::Array{ComplexF64, 3}, phi_arr::Array{ComplexF64, 3})
+        lop_arr = ein"aec,bed->abcd"(conj.(psi_arr), phi_arr)
+        lop_arr = reshape(lop_arr, (30, 30))
+        w_von_arr = eigvals(lop_arr) |> last
+        return w_von_arr
+    end
+    
+    psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)
+    phi = TensorMap(rand, ComplexF64, ℂ^6*ℂ^2, ℂ^6)
+    psi_arr = toarray(psi)
+    phi_arr = toarray(phi)
+    
+    @test ovlp(psi, phi) ≈ ovlp_von_arr(psi_arr, phi_arr)
+    
+    psi_pushback1 = gradient(arr->real(ovlp_von_arr(arr, phi_arr)), psi_arr)[1]
+    psi_pushback2 = gradient(arr->real(ovlp(arr_to_TensorMap(arr), phi)), psi_arr)[1]
+    @test psi_pushback1 ≈ psi_pushback2
+    
+    phi_pushback1 = gradient(arr->real(ovlp_von_arr(psi_arr, arr)), phi_arr)[1]
+    phi_pushback2 = gradient(arr->real(ovlp(psi, arr_to_TensorMap(arr))), phi_arr)[1]
+    @test phi_pushback1 ≈ phi_pushback2
 
+end

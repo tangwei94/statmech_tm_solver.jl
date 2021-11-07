@@ -1,28 +1,3 @@
-function ovlp(psi::TensorMap{CartesianSpace, 2, 1}, phi::TensorMap{CartesianSpace, 2, 1})
-    chi_psi, chi_phi = dim(domain(psi)), dim(domain(phi))
-    v0 = Tensor(rand, Float64, ℝ^chi_psi*ℝ^chi_phi)
-    w, _ = eigsolve(transf_mat(psi, phi), v0, 1)
-    return w[1]
-end
-
-function rrule(::typeof(ovlp), psi::TensorMap{CartesianSpace, 2, 1}, phi::TensorMap{CartesianSpace, 2, 1})
-    chi_psi, chi_phi = dim(domain(psi)), dim(domain(phi))
-    v0 = Tensor(rand, Float64, ℝ^chi_psi*ℝ^chi_phi)
-    wr, vr = eigsolve(transf_mat(psi, phi), v0, 1)
-    _, vl = eigsolve(transf_mat_T(psi, phi), v0, 1)
-    fwd = wr[1]
-    vl, vr = vl[1], vr[1]
-
-    function ovlp_pushback(f̄wd)
-        prefactor = f̄wd / (vl' * vr)[1]
-        psi_pushback = @ncon((vl, phi, vr), ([-2, 1], [1, -3, 2], [-1, 2]))
-        psi_pushback = prefactor*adjoint(permute(psi_pushback, (1,), (2, 3)))
-        phi_pushback = @ncon((vl, psi', vr), ([1, -1], [2, 1, -2], [2, -3]))
-        phi_pushback = prefactor*permute(phi_pushback, (1, 2), (3,))
-        return NoTangent(), psi_pushback, phi_pushback
-    end
-    return fwd, ovlp_pushback
-end
 
 psi = TensorMap(rand, Float64, ℝ^5*ℝ^2, ℝ^5)
 Tpsi = act(T, psi)
@@ -66,19 +41,6 @@ for ix in 1:10
     dpsi = gradient(check_act, psi)[1]
     Δy1 = dot(Δpsi, dpsi)
     print(abs(Δy - Δy1) / abs(Δy) < 1e-8, ' ')
-end
-
-function data_to_TensorMap(psidata::Array{Float64, 3})
-    chi, _, _ = size(psidata)
-    return TensorMap(psidata, ℝ^chi*ℝ^2, ℝ^chi)
-end
-function rrule(::typeof(data_to_TensorMap), psidata::Array{Float64, 3})
-    chi, _, _ = size(psidata)
-    fwd = TensorMap(psidata, ℝ^chi*ℝ^2, ℝ^chi)
-    function data_to_TensorMap_pushback(f̄wd)
-        return NoTangent(), reshape(f̄wd.data, (chi, 2, chi))
-    end
-    return fwd, data_to_TensorMap_pushback
 end
 
 # simple test

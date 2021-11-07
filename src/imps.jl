@@ -37,8 +37,32 @@ end
 
 function transf_mat_T(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexSpace, 2, 1})
     function lop_T(v::TensorMap{ComplexSpace, 1, 1})
-        @tensor result[-1; -2] := psi'[-1, 1, 3] * phi[2, 3, -2] * v[1, 2]
+        @tensor result[-2; -1] := psi[1, 3, -1] * phi'[-2, 2, 3] * v[2, 1]
         return result
     end
     return lop_T
+end
+
+function ovlp(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexSpace, 2, 1})
+    chi_psi, chi_phi = get_chi(psi), get_chi(phi)
+    v0 = TensorMap(rand, ComplexF64, ℂ^chi_phi, ℂ^chi_psi)
+    w, _ = eigsolve(transf_mat(psi, phi), v0, 1)
+    return w[1]
+end
+
+function rrule(::typeof(ovlp), psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexSpace, 2, 1})
+    chi_psi, chi_phi = get_chi(psi), get_chi(phi)
+    v0 = TensorMap(rand, ComplexF64, ℂ^chi_phi, ℂ^chi_psi)
+    wr, vr = eigsolve(transf_mat(psi, phi), v0, 1)
+    _, vl = eigsolve(transf_mat_T(psi, phi), v0, 1)
+    fwd = wr[1]
+    vl, vr = vl[1], vr[1]
+    vr = vr / dot(vl, vr)
+
+    function ovlp_pushback(f̄wd)
+        @tensor psi_pushback[-2, -3; -1] := conj(vl'[-2, 1]) * conj(phi[1, -3, 2]) * conj(vr[2, -1]) * conj(f̄wd)
+        @tensor phi_pushback[-1, -2; -3] := vl'[1, -1] * psi'[2, 1, -2] * vr[-3, 2] * f̄wd 
+        return NoTangent(), psi_pushback, phi_pushback
+    end
+    return fwd, ovlp_pushback
 end
