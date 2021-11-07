@@ -5,10 +5,6 @@ using Zygote
 using LinearAlgebra
 using Optim
 
-function cost_func_grad!(grad::Array{ComplexF64, 3}, psidata::Array{ComplexF64, 3})
-    grad .= gradient(arr->nonherm_cost_func(T, arr), psidata)[1]
-end
-
 # MPO for the triangular AF Ising
 t = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^2, ℂ^2)
 p = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2*ℂ^2)
@@ -22,11 +18,15 @@ p[1, 1, 1] = 1
 p[2, 2, 2] = 1
 
 T = t*p
+
+function cost_func_grad!(grad::Array{ComplexF64, 3}, psidata::Array{ComplexF64, 3})
+    grad .= gradient(arr->nonherm_cost_func(T, arr), psidata)[1]
+end
+
 psidata = rand(ComplexF64, (2, 2, 2))
-grad_tmp = rand(ComplexF64, (2, 2, 2))
 
 io = open("result.txt", "w+")
-for chi in [2, 4, 8] 
+for chi in [2, 4, 8, 16, 32, 64] 
     res_f = optimize(arr->nonherm_cost_func(T, arr), cost_func_grad!, psidata, LBFGS(), Optim.Options(show_trace=true, iterations=200))
     psidata_final = Optim.minimizer(res_f)
     psi_final = arr_to_TensorMap(psidata_final)
