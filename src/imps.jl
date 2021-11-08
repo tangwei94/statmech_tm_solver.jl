@@ -127,7 +127,7 @@ function ln_fidelity(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexS
     return (up/dn) |> real |> log
 end
 
-function ln_free_energy(T::TensorMap{ComplexSpace, 2, 2}, psi::TensorMap{ComplexSpace, 2, 1})
+function free_energy(T::TensorMap{ComplexSpace, 2, 2}, psi::TensorMap{ComplexSpace, 2, 1})
     Tpsi = act(T, psi)
     up = ovlp(psi, Tpsi)
     dn = ovlp(psi, psi)

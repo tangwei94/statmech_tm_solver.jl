@@ -24,7 +24,7 @@ export  act,
         left_canonical,
         iTEBD_truncate,
         ln_fidelity,
-        ln_free_energy,
+        free_energy,
         mps_add
 
 export  toarray,
