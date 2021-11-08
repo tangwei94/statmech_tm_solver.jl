@@ -27,26 +27,16 @@ psi = TensorMap(rand, ComplexF64, ℂ^2*ℂ^2, ℂ^2)
 _, psi = left_canonical(psi)
 
 io = open("result.txt", "w+")
-for chi in [2; 4; 8; 16]
-    for ix in 1:20
+for chi in [2; 4; 8; 16; 32]
+    for ix in 1:100
         _, Tpsi = left_canonical(act(T, psi))
-        Tpsi = mps_add(Tpsi, psi) + 1e-2 * TensorMap(rand, ComplexF64, ℂ^(3*chi)*ℂ^2, ℂ^(3*chi)) 
         _, psi = iTEBD_truncate(Tpsi, chi)
-        println(ix, ' ', ln_free_energy(T, psi), ' ', ln_fidelity(psi, Tpsi))
+        println(chi, ' ', ln_free_energy(T, psi), ' ', nonherm_cost_func(T, toarray(psi)),' ', ln_fidelity(psi, Tpsi))
+        println(io, chi, ' ', ln_free_energy(T, psi), ' ', nonherm_cost_func(T, toarray(psi)), ' ', ln_fidelity(psi, Tpsi))
     end
     
-    if chi >= 8
-        psi_arr = toarray(psi)
-        res_f = optimize(arr->nonherm_cost_func(T, arr), cost_func_grad!, psi_arr, LBFGS(), Optim.Options(show_trace=true, iterations=200))
-        psi = Optim.minimizer(res_f) |> arr_to_TensorMap
-    end
-
-    F = ln_free_energy(T, psi)
-    println(io, get_chi(psi), ' ', F)
     _, psi = left_canonical(act(T, psi)) 
 
 end
-close(io)
 
-#for chi in [2, 4, 8, 16, 32, 64] 
-#end
+close(io)

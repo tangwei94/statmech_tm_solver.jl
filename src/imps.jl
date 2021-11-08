@@ -131,7 +131,7 @@ function ln_free_energy(T::TensorMap{ComplexSpace, 2, 2}, psi::TensorMap{Complex
     Tpsi = act(T, psi)
     up = ovlp(psi, Tpsi)
     dn = ovlp(psi, psi)
-    return (up/dn) |> real |> log
+    return (up/dn) |> norm |> log
 end
 
 function mps_add(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexSpace, 2, 1})

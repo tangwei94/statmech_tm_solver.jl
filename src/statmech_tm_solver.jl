@@ -31,7 +31,8 @@ export  toarray,
         get_chi,
         arr_to_TensorMap
 
-export pseudo_ovlp
+export  pseudo_ovlp,
+        variational_truncate
 
 include("imps.jl")
 include("utils.jl")
