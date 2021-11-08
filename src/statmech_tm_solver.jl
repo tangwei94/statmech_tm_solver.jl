@@ -21,6 +21,7 @@ export  act,
         ovlp,
         nonherm_cost_func,
         lambda_gamma,
+        left_canonical,
         iTEBD_truncate,
         ln_fidelity,
         ln_free_energy,
@@ -30,7 +31,10 @@ export  toarray,
         get_chi,
         arr_to_TensorMap
 
+export pseudo_ovlp
+
 include("imps.jl")
 include("utils.jl")
+include("new_method.jl")
 
 end

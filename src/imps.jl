@@ -103,6 +103,14 @@ function lambda_gamma(psi::TensorMap{ComplexSpace, 2, 1})
     return norm_psi, Γ, Λ
 end
 
+function left_canonical(psi::TensorMap{ComplexSpace, 2, 1})
+
+    norm_psi, Γ, Λ = lambda_gamma(psi)
+    @tensor psi_L[-1, -2; -3] := Λ[-1, 1] * Γ[1, -2, -3]
+    return norm_psi, psi_L
+
+end
+
 function iTEBD_truncate(psi::TensorMap{ComplexSpace, 2, 1}, chi::Integer)
     norm_psi, Γ, Λ = lambda_gamma(psi)
     chi0 = get_chi(psi)
