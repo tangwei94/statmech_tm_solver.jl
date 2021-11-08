@@ -17,5 +17,8 @@ ax.plot(data[:, 2], '-', label='nonherm cost func')
 
 Fexact = 0.3230659669 
 ax.plot(np.abs(data[:, 1]-Fexact)/Fexact, '-', label='free energy err')
+
+ax.plot(-data[:, 3] + 1e-12, '--', label='-ln fidelity')
+
 ax.legend()
 plt.savefig("result_iTEBD.pdf")
