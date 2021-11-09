@@ -30,8 +30,8 @@ io = open("result.txt", "w+")
 for chi in [2; 4; 8; 16]
     for ix in 1:100
         _, Tpsi = left_canonical(act(T, psi))
-        #_, psi = iTEBD_truncate(Tpsi, chi)
-        psi = variational_truncate(Tpsi, chi)
+        _, psi = iTEBD_truncate(Tpsi, chi)
+        #psi = variational_truncate(Tpsi, chi)
         println(chi, ' ', free_energy(T, psi), ' ', nonherm_cost_func(T, toarray(psi)),' ', ln_fidelity(psi, Tpsi))
         println(io, chi, ' ', free_energy(T, psi), ' ', nonherm_cost_func(T, toarray(psi)), ' ', ln_fidelity(psi, Tpsi))
     end
