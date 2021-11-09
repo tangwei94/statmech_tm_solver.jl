@@ -5,19 +5,16 @@ using Zygote
 using LinearAlgebra
 using Optim
 
-# MPO for the triangular AF Ising
-T = mpo_triangular_AF_ising()
-
-function cost_func_grad!(grad::Array{ComplexF64, 3}, psidata::Array{ComplexF64, 3})
-    grad .= gradient(arr->nonherm_cost_func(T, arr), psidata)[1]
-end
+# MPO 
+#T = mpo_triangular_AF_ising()
+T = mpo_square_ising(1.0)
 
 psi = TensorMap(rand, ComplexF64, ℂ^2*ℂ^2, ℂ^2)
 _, psi = left_canonical(psi)
 
 io = open("result.txt", "w+")
 for chi in [2; 4; 8; 16]
-    for ix in 1:100
+    for ix in 1:50
         _, Tpsi = left_canonical(act(T, psi))
         _, psi = iTEBD_truncate(Tpsi, chi)
         #psi = variational_truncate(Tpsi, chi)

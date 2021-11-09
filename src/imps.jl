@@ -73,7 +73,6 @@ function nonherm_cost_func(T::TensorMap{ComplexSpace, 2, 2}, psi_arr::Array{Comp
     up = ovlp(Tpsi, Tpsi) * ovlp(psi, psi)
     dn = ovlp(psi, Tpsi) * ovlp(Tpsi, psi)
 
-    println(ovlp(Tpsi, Tpsi), ' ', ovlp(psi, psi))
     return log(norm(up / dn))
 end
 
