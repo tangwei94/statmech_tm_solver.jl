@@ -73,7 +73,8 @@ function nonherm_cost_func(T::TensorMap{ComplexSpace, 2, 2}, psi_arr::Array{Comp
     up = ovlp(Tpsi, Tpsi) * ovlp(psi, psi)
     dn = ovlp(psi, Tpsi) * ovlp(Tpsi, psi)
 
-    return log(real(up / dn))
+    println(ovlp(Tpsi, Tpsi), ' ', ovlp(psi, psi))
+    return log(norm(up / dn))
 end
 
 function lambda_gamma(psi::TensorMap{ComplexSpace, 2, 1})
@@ -86,7 +87,7 @@ function lambda_gamma(psi::TensorMap{ComplexSpace, 2, 1})
     wr, ρr = eigsolve(lop, ρ0, 1)
     _, ρl = eigsolve(lopT, ρ0, 1)
     ρl, ρr = ρl[1], ρr[1]
-    norm_psi = wr[1] |> real |> sqrt
+    norm_psi = wr[1] |> norm |> sqrt
     psi = psi / norm_psi
 
     _, s, v = tsvd(ρr)
