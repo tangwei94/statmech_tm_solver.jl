@@ -7,7 +7,8 @@ using Optim
 
 # MPO 
 #T = mpo_triangular_AF_ising()
-T = mpo_square_ising(1.0)
+beta_c = log(1 + sqrt(2)) / 2
+T = mpo_square_ising(beta_c)
 
 psi = TensorMap(rand, ComplexF64, ℂ^2*ℂ^2, ℂ^2)
 _, psi = left_canonical(psi)
