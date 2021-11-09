@@ -33,11 +33,14 @@ export  toarray,
         get_chi,
         arr_to_TensorMap
 
+export  mpo_triangular_AF_ising
+
 export  pseudo_ovlp,
         variational_truncate
 
 include("imps.jl")
 include("utils.jl")
+include("mpo_zoo.jl")
 include("new_method.jl")
 
 end
