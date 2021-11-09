@@ -25,7 +25,9 @@ export  act,
         iTEBD_truncate,
         ln_fidelity,
         free_energy,
-        mps_add
+        mps_add,
+        left_canonical_QR,
+        right_canonical_QR
 
 export  toarray,
         get_chi,

@@ -132,3 +132,37 @@ end
     @test toarray(psi_plus_phi)[1:5, :, 6:11] ≈ zeros(5, 2, 6)
     @test toarray(psi_plus_phi)[6:11, :, 1:5] ≈ zeros(6, 2, 5)
 end
+
+@timedtestset "test right_canonical_QR" for ix in 1:5
+    chi = 10
+    psi = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
+    Y, psi_R = right_canonical_QR(psi)
+
+    # test the iterated equation
+    @tensor rhs[-1, -2; -3] := Y'[-1, 1] * psi_R[1, -2, -3]
+    lhs = psi * Y'
+    @test lhs ≈ (lhs[1] / rhs[1]) * rhs
+
+    # test the right-canonical relation
+    psi_Rtmp = permute(psi_R, (1,), (2, 3))
+    @test psi_Rtmp * psi_Rtmp' ≈ id(ℂ^chi)
+    # test fidelity
+    @test ln_fidelity(psi, psi_R) > -1e-14
+end
+
+@timedtestset "test left_canonical_QR" for ix in 1:5
+    chi = 10
+    psi = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
+    X, psi_L = left_canonical_QR(psi)
+    
+    # test the iterated equation
+    @tensor lhs[-1, -2; -3] := X[-1, 1] * psi[1, -2, -3]
+    rhs = psi_L * X
+    @test lhs ≈ (lhs[1] / rhs[1]) * rhs
+    
+    # test the left canonical relation
+    @test psi_L' * psi_L ≈ id(ℂ^chi)
+    
+    # test the fidelity
+    @test ln_fidelity(psi, psi_L) > -1e-14
+end
