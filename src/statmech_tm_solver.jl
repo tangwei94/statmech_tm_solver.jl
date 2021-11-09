@@ -33,7 +33,8 @@ export  toarray,
         get_chi,
         arr_to_TensorMap
 
-export  mpo_triangular_AF_ising
+export  mpo_triangular_AF_ising,
+        mpo_square_ising
 
 export  pseudo_ovlp,
         variational_truncate
