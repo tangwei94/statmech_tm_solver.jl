@@ -3,25 +3,20 @@ function pseudo_ovlp(psi::TensorMap{ComplexSpace, 2, 1}, phi1::TensorMap{Complex
     ln_ovlp2 = log(ovlp(psi, phi2))
     ln_ovlp_tot = ln_ovlp1 + log1p(exp(power_order*(ln_ovlp2-ln_ovlp1))) / power_order
     return ln_ovlp_tot
-    #ovlp1 = ovlp(psi, phi1)
-    #ovlp2 = ovlp(psi, phi2)
-    #return (ovlp1^power_order + ovlp2^power_order)^(1.0/power_order) |> real
 
 end
 
-function variational_truncate(phi1::TensorMap{ComplexSpace, 2, 1}, phi2::TensorMap{ComplexSpace, 2, 1}, chi::Integer, power_order::Integer)
-    _, phi1 = left_canonical(phi1)
-    _, phi2 = left_canonical(phi2)
+function variational_truncate(phi::TensorMap{ComplexSpace, 2, 1}, chi::Integer)
+    _, phi = left_canonical(phi)
 
-    #_, psi = iTEBD_truncate(mps_add(phi1, phi2), chi)
-    #psi_arr = toarray(psi)
-    psi_arr = rand(ComplexF64, chi, 2, chi)
+    _, psi = iTEBD_truncate(phi, chi)
+    psi_arr = toarray(psi)
 
     function _f(_arr)
         _psi = arr_to_TensorMap(_arr)
-        up = 2 * pseudo_ovlp(_psi, phi1, phi2, power_order) 
-        dn = ovlp(_psi, _psi) |> log
-        return (dn - up) |> real 
+        up = norm(ovlp(_psi, phi))^2  
+        dn = ovlp(_psi, _psi)
+        return -(up/dn) |> real 
     end
     function _g!(_grad, _arr)
         _grad .= gradient(_f, _arr)[1]
