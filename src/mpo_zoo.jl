@@ -20,12 +20,12 @@ function mpo_triangular_AF_ising_alternative()
     # ref: Phys. Rev. Res. 3, 013041 (2021)
     t = TensorMap(zeros, ComplexF64, ℂ^4*ℂ^4, ℂ^4)
     p = TensorMap(zeros, ComplexF64, ℂ^4, ℂ^4)
-    t[1, 2, 3] = 1/2
-    t[3, 1, 2] = 1/2
-    t[2, 3, 1] = 1/2
-    t[3, 2, 4] = 1/2
-    t[2, 4, 3] = 1/2
-    t[4, 3, 2] = 1/2
+    t[1, 2, 3] = 1
+    t[3, 1, 2] = 1
+    t[2, 3, 1] = 1
+    t[3, 2, 4] = 1
+    t[2, 4, 3] = 1
+    t[4, 3, 2] = 1
     p[1, 1] = 1
     p[2, 2] = 1
     p[3, 3] = 1
