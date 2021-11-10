@@ -112,7 +112,7 @@ end
     @test R ≈ Id
 end
 
-@timetestset "test mps add" for ix in 1:5
+@timedtestset "test mps add" for ix in 1:5
     psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)
     phi = TensorMap(rand, ComplexF64, ℂ^6*ℂ^2, ℂ^6)
     
