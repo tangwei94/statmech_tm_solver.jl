@@ -28,7 +28,7 @@ bimps(A, B)
 function A_canonical(T::TensorMap{ComplexSpace, 2, 2}, psi::bimps)
 
     # convert A to left canonical form
-    X, AL = left_canonical_QR(psi.A)
+    X, AL = left_canonical_QR(psi.A, 1e-12)
     Xinv = inv(X)
     @tensor BL[-1, -2; -3] := psi.B[1, -2, 2] * X[-1, 1] * Xinv[2, -3] 
 
@@ -49,7 +49,7 @@ A_canonical(T, psi)
 function B_canonical(T::TensorMap{ComplexSpace, 2, 2}, psi::bimps)
 
     # convert B to right canonical form
-    Y, BR = right_canonical_QR(psi.B)
+    Y, BR = right_canonical_QR(psi.B, 1e-12)
     Yinv = inv(Y')'
     @tensor AR[-1, -2; -3] := Yinv'[-1, 1] * psi.A[1, -2, 2] * Y'[2, -3]
 
@@ -68,8 +68,23 @@ end
 psi = B_canonical(T, psi)
 
 psi = bimps(rand, 8, 2)
-for ix in 1:10
-    psi = A_canonical(T, psi)
-    psi = B_canonical(T, psi)
-    println(free_energy(T, psi.A))
-end
+
+psi = A_canonical(T, psi)
+psi = B_canonical(T, psi)
+println(free_energy(T, psi.A))
+psi = A_canonical(T, psi)
+#psi = B_canonical(T, psi)
+# convert B to right canonical form
+Y, BR = right_canonical_QR(psi.B, 1e-12)
+Yinv = inv(Y')'
+@tensor AR[-1, -2; -3] := Yinv'[-1, 1] * psi.A[1, -2, 2] * Y'[2, -3]
+
+# construct the linear operator for the maping of A
+function lop(v::TensorMap{ComplexSpace, 2, 1}) 
+    @tensor Tv[-1, -2; -3] := AR[1, 2, 4] * BR[-1, 3, 1] * T[5, -2, 2, 3] * BR'[4, -3, 5]
+    return Tv 
+end 
+
+# solve AR from the fixed point equation
+_, AR = eigsolve(lop, AR, 1)
+AR = AR[1]
