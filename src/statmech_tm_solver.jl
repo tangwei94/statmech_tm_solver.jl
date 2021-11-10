@@ -34,6 +34,7 @@ export  toarray,
         arr_to_TensorMap
 
 export  mpo_triangular_AF_ising,
+        mpo_triangular_AF_ising_alternative,
         mpo_square_ising
 
 export  pseudo_ovlp,
