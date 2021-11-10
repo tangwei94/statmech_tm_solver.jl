@@ -44,6 +44,7 @@ export  pseudo_ovlp,
 include("imps.jl")
 include("utils.jl")
 include("mpo_zoo.jl")
-include("new_method.jl")
+include("bi_direction.jl")
+include("attempts.jl")
 
 end
