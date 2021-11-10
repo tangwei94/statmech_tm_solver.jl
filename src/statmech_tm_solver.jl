@@ -31,6 +31,7 @@ export  act,
 
 export  toarray,
         get_chi,
+        get_d,
         arr_to_TensorMap
 
 export  mpo_triangular_AF_ising,

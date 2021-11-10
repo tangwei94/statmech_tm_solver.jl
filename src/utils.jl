@@ -16,6 +16,7 @@ function toarray(t::TensorMap{ComplexSpace})
 end
 
 @inline get_chi(psi::TensorMap{ComplexSpace, 2, 1}) = dim(domain(psi))
+@inline get_d(psi::TensorMap{ComplexSpace, 2, 1}) = dim(codomain(psi)) ÷ dim(domain(psi))
 
 function arr_to_TensorMap(arr::Array{ComplexF64, 3})
     chi, d, _ = size(arr)
