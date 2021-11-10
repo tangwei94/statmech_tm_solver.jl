@@ -7,15 +7,15 @@ using Optim
 
 # MPO 
 #T = mpo_triangular_AF_ising()
-T = mpo_square_ising(0.45)
-d = 2
+T = mpo_triangular_AF_ising_alternative()
+d = 4
 
 psi = TensorMap(rand, ComplexF64, ℂ^2*ℂ^d, ℂ^2)
 _, psi = left_canonical(psi)
 
 io = open("result.txt", "w")
 close(io)
-for chi in [2; 4; 8; 16]
+for chi in [2; 4; 8; 16; 32]
     convergence_flag = -10
     io = open("result.txt", "a+")
     while convergence_flag <= 0
