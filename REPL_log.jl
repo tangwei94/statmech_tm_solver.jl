@@ -1,6 +1,7 @@
 # a log of things that I put into the julia REPL
 # useful things will be later absorbed into the package 
 
+using Revise
 using TensorKit
 using TensorOperations
 using statmech_tm_solver
@@ -69,22 +70,6 @@ psi = B_canonical(T, psi)
 
 psi = bimps(rand, 8, 2)
 
-psi = A_canonical(T, psi)
 psi = B_canonical(T, psi)
-println(free_energy(T, psi.A))
 psi = A_canonical(T, psi)
-#psi = B_canonical(T, psi)
-# convert B to right canonical form
-Y, BR = right_canonical_QR(psi.B, 1e-12)
-Yinv = inv(Y')'
-@tensor AR[-1, -2; -3] := Yinv'[-1, 1] * psi.A[1, -2, 2] * Y'[2, -3]
-
-# construct the linear operator for the maping of A
-function lop(v::TensorMap{ComplexSpace, 2, 1}) 
-    @tensor Tv[-1, -2; -3] := AR[1, 2, 4] * BR[-1, 3, 1] * T[5, -2, 2, 3] * BR'[4, -3, 5]
-    return Tv 
-end 
-
-# solve AR from the fixed point equation
-_, AR = eigsolve(lop, AR, 1)
-AR = AR[1]
+println(free_energy(T, psi.A))

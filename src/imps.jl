@@ -158,9 +158,9 @@ function right_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-
     L0 = L
 
     while δ > tol
-        lop = transf_mat(psi, psi_R)
-        _, vr = eigsolve(lop, L0, 1; tol=max(tol, δ/10))
-        L = vr[1]' 
+        #lop = transf_mat(psi, psi_R)
+        #_, vr = eigsolve(lop, L0, 1; tol=max(tol, δ/10))
+        #L = vr[1]' 
 
         L, Q = rightorth(permute(psi * L, (1, ), (2, 3)))
         psi_R = permute(Q, (1, 2), (3, ))
@@ -183,9 +183,9 @@ function left_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-1
     R0 = R
 
     while δ > tol
-        lop_T = transf_mat_T(psi, psi_L)
-        _, vl = eigsolve(lop_T, R0, 1; tol=max(tol, δ/10))
-        R = vl[1]
+        #lop_T = transf_mat_T(psi, psi_L)
+        #_, vl = eigsolve(lop_T, R0, 1; tol=max(tol, δ/10))
+        #R = vl[1]
 
         @tensor psi_tmp[-1, -2; -3] := R[-1, 1] * psi[1, -2, -3]
         psi_L, R = leftorth(psi_tmp)
