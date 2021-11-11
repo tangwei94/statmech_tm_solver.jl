@@ -178,7 +178,7 @@ function right_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-
     end
     
     #println(ix, " iterations")
-    δ > tol && @warn "right_canonical_QR failed to converge"
+    δ > tol && @warn "right_canonical_QR failed to converge. δ: $δ , tol: $tol"
 
     return L0', psi_R
 end
@@ -213,7 +213,7 @@ function left_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-1
     end
 
     #println(ix, " iterations")
-    δ > tol && @warn "left_canonical_QR failed to converge"
+    δ > tol && @warn "left_canonical_QR failed to converge. δ: $δ , tol: $tol"
 
     return R0, psi_L
 end

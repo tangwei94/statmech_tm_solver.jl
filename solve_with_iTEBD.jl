@@ -23,7 +23,6 @@ for chi in [2; 4; 8; 16; 32]
         _, psi = iTEBD_truncate(Tpsi, chi)
         #psi = variational_truncate(Tpsi, chi)
 
-        F_value_prev = F_value
         F_value = free_energy(T, psi)
         costfunc_value = nonherm_cost_func(T, toarray(psi))
         fidelity_value = ln_fidelity(psi, Tpsi)
