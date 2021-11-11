@@ -3,7 +3,7 @@ T = mpo_triangular_AF_ising()
 
 T_arr = reshape(T.data, (2, 2, 2, 2))
 
-@timedtestset "test act ($ix)" for ix in 1:5
+@timedtestset "test act ($ix)" for ix in 1:10
 
     psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)
     psi_arr = reshape(psi.data, (5, 2, 5))
@@ -14,7 +14,7 @@ T_arr = reshape(T.data, (2, 2, 2, 2))
 end
 
 # test rrule of act
-@timedtestset "test rrule for act ($ix)" for ix in 1:5
+@timedtestset "test rrule for act ($ix)" for ix in 1:10
     function f_with_OMEinsum(psi_arr::Array{ComplexF64, 3})
         Tpsi_arr = reshape(ein"acmd,bme->abcde"(T_arr, psi_arr), (10, 2, 10))
         result = ein"abc,abc->"(conj(Tpsi_arr), Tpsi_arr) |> real
@@ -34,7 +34,7 @@ end
     @test grad_von_OMEinsum ≈ conj.(grad)
 end
 
-@timedtestset "test transf_mat constructions ($ix)" for ix in 1:5
+@timedtestset "test transf_mat constructions ($ix)" for ix in 1:10
     psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)
     phi = TensorMap(rand, ComplexF64, ℂ^6*ℂ^2, ℂ^6)
     v = TensorMap(rand, ComplexF64, ℂ^6, ℂ^5)
@@ -53,7 +53,7 @@ end
     @test lopT_v ≈ lop_T(v) |> toarray
 end
 
-@timedtestset "dominant vr and vl should be positive definite" for ix in 1:5
+@timedtestset "dominant vr and vl should be positive definite" for ix in 1:10
     psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)
     v = TensorMap(rand, ComplexF64, ℂ^5, ℂ^5)
     lop = transf_mat(psi, psi)
@@ -74,7 +74,7 @@ end
 
 end
 
-@timedtestset "test ovlp and its rrule" for ix in 1:5
+@timedtestset "test ovlp and its rrule" for ix in 1:10
     function ovlp_von_arr(psi_arr::Array{ComplexF64, 3}, phi_arr::Array{ComplexF64, 3})
         lop_arr = ein"aec,bed->abcd"(conj.(psi_arr), phi_arr)
         lop_arr = reshape(lop_arr, (30, 30))
@@ -99,7 +99,7 @@ end
 
 end
 
-@timedtestset "test Gamma-Lambda conversion" for ix in 1:5
+@timedtestset "test Gamma-Lambda conversion" for ix in 1:10
     psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)
     norm_psi, Γ, Λ = lambda_gamma(psi)
 
@@ -112,7 +112,7 @@ end
     @test R ≈ Id
 end
 
-@timedtestset "test mps add" for ix in 1:5
+@timedtestset "test mps add" for ix in 1:10
     psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)
     phi = TensorMap(rand, ComplexF64, ℂ^6*ℂ^2, ℂ^6)
     
@@ -123,7 +123,7 @@ end
     @test toarray(psi_plus_phi)[6:11, :, 1:5] ≈ zeros(6, 2, 5)
 end
 
-@timedtestset "test right_canonical_QR" for ix in 1:5
+@timedtestset "test right_canonical_QR" for ix in 1:10
     chi = 10
     psi = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
     Y, psi_R = right_canonical_QR(psi)
@@ -140,7 +140,7 @@ end
     @test ln_fidelity(psi, psi_R) > -1e-14
 end
 
-@timedtestset "test left_canonical_QR" for ix in 1:5
+@timedtestset "test left_canonical_QR" for ix in 1:10
     chi = 10
     psi = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
     X, psi_L = left_canonical_QR(psi)
