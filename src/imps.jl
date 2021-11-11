@@ -157,10 +157,14 @@ function right_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-
     δ = norm(L - L0)
     L0 = L
 
-    while δ > tol
-        #lop = transf_mat(psi, psi_R)
-        #_, vr = eigsolve(lop, L0, 1; tol=max(tol, δ/10))
-        #L = vr[1]' 
+    ix= 0
+    while δ > tol && ix < 200
+        if ix >= 20 && ix % 10 == 0 
+            lop = transf_mat(psi, psi_R)
+            _, vr = eigsolve(lop, L0, 1; tol=max(tol, δ/10))
+            L = vr[1]' 
+            #print("--> ")
+        end
 
         L, Q = rightorth(permute(psi * L, (1, ), (2, 3)))
         psi_R = permute(Q, (1, 2), (3, ))
@@ -168,7 +172,13 @@ function right_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-
 
         δ = norm(L-L0)
         L0 = L
+
+        #println(δ) 
+        ix += 1
     end
+    
+    #println(ix, " iterations")
+    δ > tol && @warn "right_canonical_QR failed to converge"
 
     return L0', psi_R
 end
@@ -182,10 +192,14 @@ function left_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-1
     δ = norm(R - R0)
     R0 = R
 
-    while δ > tol
-        #lop_T = transf_mat_T(psi, psi_L)
-        #_, vl = eigsolve(lop_T, R0, 1; tol=max(tol, δ/10))
-        #R = vl[1]
+    ix = 0
+    while δ > tol && ix < 200
+        if ix >= 20 && ix % 10 == 0 
+            lop_T = transf_mat_T(psi, psi_L)
+            _, vl = eigsolve(lop_T, R0, 1; tol=max(tol, δ/10))
+            R = vl[1]
+            #print("--> ")
+        end
 
         @tensor psi_tmp[-1, -2; -3] := R[-1, 1] * psi[1, -2, -3]
         psi_L, R = leftorth(psi_tmp)
@@ -193,6 +207,13 @@ function left_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-1
 
         δ = norm(R - R0)
         R0 = R
+
+        #println(δ) 
+        ix += 1
     end
+
+    #println(ix, " iterations")
+    δ > tol && @warn "left_canonical_QR failed to converge"
+
     return R0, psi_L
 end
