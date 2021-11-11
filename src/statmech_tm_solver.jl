@@ -38,6 +38,10 @@ export  mpo_triangular_AF_ising,
         mpo_triangular_AF_ising_alternative,
         mpo_square_ising
 
+export  bimps, 
+        A_canonical, 
+        B_canonical
+
 export  pseudo_ovlp,
         variational_truncate
 
