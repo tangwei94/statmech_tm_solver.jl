@@ -14,3 +14,4 @@ using TensorOperations
 include("test_imps.jl")
 include("test_utils.jl")
 include("test_bi_direction.jl")
+include("test_cmps.jl")

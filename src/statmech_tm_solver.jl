@@ -42,6 +42,10 @@ export  bimps,
         A_canonical, 
         B_canonical
 
+export  cmps,
+        right_canonical
+
+
 export  pseudo_ovlp,
         variational_truncate
 
@@ -49,6 +53,7 @@ include("imps.jl")
 include("utils.jl")
 include("mpo_zoo.jl")
 include("bi_direction.jl")
+include("cmps.jl")
 include("attempts.jl")
 
 end
