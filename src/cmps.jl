@@ -51,7 +51,7 @@ function left_canonical(psi::cmps)
     Q = X * psi.Q * Xinv - 0.5 * w * id(ℂ^chi) # normalized
     @tensor R[-1, -2; -3] := X[-1, 1] * psi.R[1, -2, 2] * Xinv[2, -3]
 
-    return cmps(Q, R)
+    return X, cmps(Q, R)
 end
 
 function right_canonical(psi::cmps)
@@ -73,5 +73,5 @@ function right_canonical(psi::cmps)
     Q = Yinv' * psi.Q * Y' - 0.5 * w * id(ℂ^chi)
     @tensor R[-1, -2; -3] := Yinv'[-1, 1] * psi.R[1, -2, 2] * Y'[2, -3]
     
-    return cmps(Q, R)
+    return Y, cmps(Q, R)
 end

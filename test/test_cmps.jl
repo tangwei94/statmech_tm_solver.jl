@@ -25,7 +25,7 @@ end
 
 @timedtestset "test left canonical for cmps" for ix in 1:10
     ψ = cmps(rand, 8, 3)
-    ψL = left_canonical(ψ)
+    _, ψL = left_canonical(ψ)
 
     @tensor result[-1; -2] := ψL.Q'[-1, -2] + ψL.Q[-1, -2] + ψL.R[1, 2, -2] * ψL.R'[-1, 1, 2]
     @test isapprox(result, TensorMap(zeros, ComplexF64, ℂ^8, ℂ^8), atol=sqrt(eps()))
@@ -33,7 +33,7 @@ end
 
 @timedtestset "test right canonical for cmps" for ix in 1:10
     ψ = cmps(rand, 8, 3)
-    ψR = right_canonical(ψ)
+    _, ψR = right_canonical(ψ)
 
     @tensor result[-1; -2] := ψR.Q'[-1, -2] + ψR.Q[-1, -2] + ψR.R[-1, 2, 1] * ψR.R'[1, -2, 2]
     @test isapprox(result, TensorMap(zeros, ComplexF64, ℂ^8, ℂ^8), atol=sqrt(eps()))
