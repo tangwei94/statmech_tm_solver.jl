@@ -9,6 +9,30 @@ function cmps(f, chi::Integer, d::Integer)
     return cmps(Q, R)
 end
 
+function +(psi::cmps, phi::cmps)
+    Q = psi.Q + phi.Q
+    R = psi.R + phi.R 
+    return cmps(Q, R)
+end
+
+function -(psi::cmps, phi::cmps)
+    Q = psi.Q - phi.Q 
+    R = psi.R - phi.R 
+    return cmps(Q, R)
+end
+
+function *(psi::cmps, x::Number)
+    Q = psi.Q * x
+    R = psi.R * x
+    return cmps(Q, R)
+end
+
+function *(x::Number, psi::cmps)
+    Q = psi.Q * x
+    R = psi.R * x
+    return cmps(Q, R)
+end
+
 @inline get_chi(psi::cmps) = get_chi(psi.R)
 @inline get_d(psi::cmps) = get_d(psi.R)
 

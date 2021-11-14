@@ -14,6 +14,7 @@ using TensorOperations
 using ChainRules
 using ChainRulesCore
 import ChainRulesCore: rrule, frule
+import Base: +, -, *
 
 export  act,
         transf_mat,
@@ -47,6 +48,10 @@ export  cmps,
 
 export  cmpo
 
+export  cmpo_ising
+
+export  qbimps
+
 export  pseudo_ovlp,
         variational_truncate
 
@@ -56,6 +61,8 @@ include("mpo_zoo.jl")
 include("bi_direction.jl")
 include("cmps.jl")
 include("cmpo.jl")
+include("cmpo_zoo.jl")
+include("bi_direction_q.jl")
 include("attempts.jl")
 
 end
