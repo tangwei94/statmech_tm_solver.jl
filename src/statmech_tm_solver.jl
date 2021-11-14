@@ -14,7 +14,8 @@ using TensorOperations
 using ChainRules
 using ChainRulesCore
 import ChainRulesCore: rrule, frule
-import Base: +, -, *
+import Base: +, -, *, iterate, length
+import LinearAlgebra: rmul!
 
 export  act,
         transf_mat,
@@ -37,7 +38,8 @@ export  toarray,
 
 export  mpo_triangular_AF_ising,
         mpo_triangular_AF_ising_alternative,
-        mpo_square_ising
+        mpo_square_ising,
+        mpo_quantum_ising
 
 export  bimps, 
         A_canonical, 

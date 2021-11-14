@@ -9,29 +9,32 @@ function cmps(f, chi::Integer, d::Integer)
     return cmps(Q, R)
 end
 
-function +(psi::cmps, phi::cmps)
-    Q = psi.Q + phi.Q
-    R = psi.R + phi.R 
-    return cmps(Q, R)
++(psi::cmps, phi::cmps) = cmps(psi.Q + phi.Q, psi.R + phi.R)
+-(psi::cmps, phi::cmps) = cmps(psi.Q - phi.Q, psi.R - phi.R)
+*(psi::cmps, x::Number) = cmps(psi.Q * x, psi.R * x)
+*(x::Number, psi::cmps) = cmps(psi.Q * x, psi.R * x)
+function rmul!(psi::cmps, x::Number)
+    rmul!(psi.Q, x)
+    rmul!(psi.R, x)
+    return psi
 end
 
-function -(psi::cmps, phi::cmps)
-    Q = psi.Q - phi.Q 
-    R = psi.R - phi.R 
-    return cmps(Q, R)
+length(iter::cmps) = length(iter.Q.data) + length(iter.R.data)
+iterate(iter::cmps) = (iter.Q[1], 1)
+function iterate(iter::cmps, state)
+    next_state = state + 1
+    len_Q = length(iter.Q.data)
+    len_R = length(iter.R.data)
+    if next_state <= len_Q
+        next_elem = iter.Q[next_state]
+    elseif next_state <= len_Q + len_R 
+        next_elem = iter.R[next_state - len_Q]
+    else
+        return nothing 
+    end
+    return (next_elem, next_state)
 end
 
-function *(psi::cmps, x::Number)
-    Q = psi.Q * x
-    R = psi.R * x
-    return cmps(Q, R)
-end
-
-function *(x::Number, psi::cmps)
-    Q = psi.Q * x
-    R = psi.R * x
-    return cmps(Q, R)
-end
 
 @inline get_chi(psi::cmps) = get_chi(psi.R)
 @inline get_d(psi::cmps) = get_d(psi.R)

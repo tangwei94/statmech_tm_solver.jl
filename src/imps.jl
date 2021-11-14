@@ -1,6 +1,6 @@
 function act(T::TensorMap{ComplexSpace, 2, 2}, psi::TensorMap{ComplexSpace, 2, 1})
     chi = get_chi(psi)
-    d = get_d(psi)
+    d = dims(domain(T))[2]
     fuse_tensor = isomorphism(ℂ^(chi*d), ℂ^d*ℂ^chi)
 
     @tensor Tpsi[-1, -2; -3] := T[3, -2, 2, 5] * psi[1, 2, 4] * fuse_tensor[-1, 3, 1] * fuse_tensor'[5, 4, -3]
