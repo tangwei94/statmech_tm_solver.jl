@@ -132,7 +132,7 @@ end
 
 function mps_add(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexSpace, 2, 1})
     # https://github.com/Jutho/TensorKit.jl/issues/54
-    # actually not effective for infinite MPS 
+    # actually doesn't work for infinite MPS 
     chi_psi, chi_phi = get_chi(psi), get_chi(phi)
     chi = chi_psi + chi_phi
 

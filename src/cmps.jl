@@ -13,6 +13,7 @@ end
 -(psi::cmps, phi::cmps) = cmps(psi.Q - phi.Q, psi.R - phi.R)
 *(psi::cmps, x::Number) = cmps(psi.Q * x, psi.R * x)
 *(x::Number, psi::cmps) = cmps(psi.Q * x, psi.R * x)
+similar(psi::cmps) = cmps(similar(psi.Q), similar(psi.R))
 function rmul!(psi::cmps, x::Number)
     rmul!(psi.Q, x)
     rmul!(psi.R, x)
@@ -39,7 +40,17 @@ function iterate(iter::cmps, state)
     end
     return (next_elem, next_state)
 end
-
+function getindex(psi::cmps, ix::Integer)
+    len_Q = length(psi.Q.data)
+    len_R = length(psi.R.data)
+    if ix <= len_Q && ix > 0
+        return psi.Q[ix]
+    elseif ix <= len_Q + len_R
+        return psi.Q[ix]
+    else 
+        throw(BoundsError())
+    end
+end
 
 @inline get_chi(psi::cmps) = get_chi(psi.R)
 @inline get_d(psi::cmps) = get_d(psi.R)

@@ -52,3 +52,32 @@ function mpo_square_ising(beta::Float64)
     @tensor T[-1, -2; -3, -4] := δ[1, 2, 3, 4] * v[-1, 1] * v[-2, 2] * u[3, -3] * u[4, -4]
     return T
 end
+
+function energy_quantum_ising(psi::TensorMap{ComplexSpace, 2, 1}, Γ::Number)
+    σx = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
+    σz = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
+
+    σx[1, 2] = 1
+    σx[2, 1] = 1
+
+    σz[1, 1] = 1
+    σz[2, 2] = -1
+
+    lop = transf_mat(psi, psi)
+    lopT = transf_mat_T(psi, psi)
+    chi = get_chi(psi)
+    v0 = TensorMap(rand, ComplexF64, ℂ^chi, ℂ^chi)
+
+    w, vr = eigsolve(lop, v0, 1)
+    _, vl = eigsolve(lopT, v0, 1)
+    w = w[1]
+    vr = vr[1]
+    vl = vl[1]
+
+    @tensor term1[:] := vl'[1, 2] * psi'[5, 1, 3] * σx[3, 4] * psi[2, 4, 6] * psi'[8, 5, 7] * psi[6, 7, 9] * vr[9, 8]
+    @tensor term2[:] := vl'[1, 2] * psi'[4, 1, 3] * psi[2, 3, 5] * psi'[8, 4, 6] * σx[6, 7] * psi[5, 7, 9] * vr[9, 8]
+    @tensor term3[:] := vl'[1, 2] * psi'[5, 1, 3] * σz[3, 4] * psi[2, 4, 6] * psi'[9, 5, 7] * σz[7, 8] * psi[6, 8, 10] * vr[10, 9]
+
+    return (-Γ*term1 - Γ*term2 - term3)[1] / tr(vl' * vr) / w^2 / 2
+
+end

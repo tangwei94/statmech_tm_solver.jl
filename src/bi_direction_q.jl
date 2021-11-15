@@ -11,8 +11,8 @@ function qbimps(f, chi::Integer, dp::Integer, dv::Integer)
     return qbimps(A, B)
 end
 
-function A_canonical(T::cmpo, psi::qbimps)
-    Y, AR = right_canonical_QR(psi.A)
+function A_canonical_failed(T::cmpo, psi::qbimps)
+    Y, AR = right_canonical_QR(psi.A, 1e-12)
     Yinv = inv(Y')'
 
     @tensor BR_R[-1, -2; -3] := psi.B.R[1, -2, 2] * Yinv'[-1, 1] * Y'[2, -3]
@@ -21,15 +21,59 @@ function A_canonical(T::cmpo, psi::qbimps)
 
     function lop(v::cmps)
         @tensor TvQ[-1; -2] := v.Q[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] + 
+                               #AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3] +
+                               v.R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] +
+                               (-1.0) * v.Q[-1, -2]
+        @tensor TvR[-1, -2; -3] := v.R[1, 3, 4] * AR[-1, 2, 1] * T.P[-2, 5, 2, 3] * AR'[4, -3, 5] +
+                                   #AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
+                                   (-1.0) * v.R[-1, -2, -3]
+        return cmps(TvQ, TvR)
+    end
+    @tensor bQ[-1; -2] := AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3]
+    @tensor bR[-1, -2; -3] := AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
+    BR, _ = linsolve(lop, -1*cmps(bQ, bR), BR)
+
+    return lop, qbimps(AR, BR)
+end
+
+function A_canonical(T::cmpo, psi::qbimps)
+    Y, AR = right_canonical_QR(psi.A, 1e-12)
+    Yinv = inv(Y')'
+
+    @tensor BR_R[-1, -2; -3] := psi.B.R[1, -2, 2] * Yinv'[-1, 1] * Y'[2, -3]
+    BR_Q = Yinv' * psi.B.Q * Y'
+    BR = cmps(BR_Q, BR_R)
+
+    function lopR(vR::TensorMap{ComplexSpace, 2, 1})
+        @tensor TvR[-1, -2; -3] := vR[1, 3, 4] * AR[-1, 2, 1] * T.P[-2, 5, 2, 3] * AR'[4, -3, 5] +
+                                   (-1.0) * vR[-1, -2, -3]
+        return TvR
+    end
+    @tensor bR[-1, -2; -3] := AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
+    BR_R, _ = linsolve(lopR, -bR, BR_R)
+
+    function lopQ(vQ::TensorMap{ComplexSpace, 1, 1})
+        @tensor TvQ[-1; -2] := vQ[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] + 
+                               (-1.0) * vQ[-1, -2]
+        return TvQ
+    end
+    @tensor bQ[-1; -2] := BR_R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] +
+                          AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3]
+    BR_Q, _ = linsolve(lopQ, -bQ, BR_Q)
+
+    BR = cmps(BR_Q, BR_R)
+
+    function lop(v::cmps)
+        @tensor TvQ[-1; -2] := v.Q[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] + 
                                AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3] +
-                               v.R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3]
+                               v.R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] 
         @tensor TvR[-1, -2; -3] := v.R[1, 3, 4] * AR[-1, 2, 1] * T.P[-2, 5, 2, 3] * AR'[4, -3, 5] +
                                    AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
         return cmps(TvQ, TvR)
     end
-    _, BR = eigsolve(lop, BR, 1)
-    BR = BR[1]
 
+    @assert lop(BR).Q ≈ BR.Q
+    @assert lop(BR).R ≈ BR.R
     return qbimps(AR, BR)
 end
 
