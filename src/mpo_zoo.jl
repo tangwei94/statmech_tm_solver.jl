@@ -52,23 +52,3 @@ function mpo_square_ising(beta::Float64)
     @tensor T[-1, -2; -3, -4] := δ[1, 2, 3, 4] * v[-1, 1] * v[-2, 2] * u[3, -3] * u[4, -4]
     return T
 end
-
-function mpo_quantum_ising(Γ::Float64)
-    t = TensorMap(zeros, ComplexF64, ℂ^3*ℂ^2, ℂ^2*ℂ^3)
-    t[1, 1, 1, 1] = 1
-    t[1, 2, 2, 1] = 1
-
-    t[1, 1, 1, 2] = 1
-    t[1, 2, 2, 2] = -1
-
-    t[1, 1, 2, 3] = -Γ
-    t[1, 2, 1, 3] = -Γ
-
-    t[2, 1, 1, 3] = -1
-    t[2, 2, 2, 3] = 1
-
-    t[3, 1, 1, 3] = 1
-    t[3, 2, 2, 3] = 1
-
-    return t
-end
