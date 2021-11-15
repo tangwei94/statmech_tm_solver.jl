@@ -53,27 +53,37 @@ function A_canonical(T::cmpo, psi::qbimps)
     BR_R, _ = linsolve(lopR, -bR, BR_R)
 
     function lopQ(vQ::TensorMap{ComplexSpace, 1, 1})
-        @tensor TvQ[-1; -2] := vQ[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] + 
-                               (-1.0) * vQ[-1, -2]
+        @tensor TvQ[-1; -2] := vQ[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] #+ 
+                               #(-1.0) * vQ[-1, -2]
         return TvQ
     end
     @tensor bQ[-1; -2] := BR_R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] +
                           AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3]
-    BR_Q, _ = linsolve(lopQ, -bQ, BR_Q)
+    # use "power method" to solve BR_Q
+    Id_Q = id(ℂ^get_chi(psi.B))
+    δ = 999
+    ix = 0
+    while δ > 1e-12 && ix < 100
+        BR_Q1 = lopQ(BR_Q) + bQ
+        δ = (BR_Q1 - BR_Q - Id_Q * (BR_Q1[1]-BR_Q[1])).data |> norm
+        ix += 1
+        BR_Q = BR_Q1
+        println(ix, ' ', δ)
+    end
+
+    (δ > 1e-12) && @warn "power method not converged for psi.B, δ=$δ "
 
     BR = cmps(BR_Q, BR_R)
 
-    function lop(v::cmps)
-        @tensor TvQ[-1; -2] := v.Q[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] + 
-                               AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3] +
-                               v.R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] 
-        @tensor TvR[-1, -2; -3] := v.R[1, 3, 4] * AR[-1, 2, 1] * T.P[-2, 5, 2, 3] * AR'[4, -3, 5] +
-                                   AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
-        return cmps(TvQ, TvR)
-    end
+    #function lop(v::cmps)
+    #    @tensor TvQ[-1; -2] := v.Q[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] + 
+    #                           AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3] +
+    #                           v.R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] 
+    #    @tensor TvR[-1, -2; -3] := v.R[1, 3, 4] * AR[-1, 2, 1] * T.P[-2, 5, 2, 3] * AR'[4, -3, 5] +
+    #                               AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
+    #    return cmps(TvQ, TvR)
+    #end
 
-    @assert lop(BR).Q ≈ BR.Q
-    @assert lop(BR).R ≈ BR.R
     return qbimps(AR, BR)
 end
 
