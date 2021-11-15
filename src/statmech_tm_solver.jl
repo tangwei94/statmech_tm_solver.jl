@@ -15,7 +15,7 @@ using ChainRules
 using ChainRulesCore
 import ChainRulesCore: rrule, frule
 import Base: +, -, *, iterate, length
-import LinearAlgebra: rmul!
+import LinearAlgebra: rmul!, axpy!
 
 export  act,
         transf_mat,

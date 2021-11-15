@@ -18,6 +18,11 @@ function rmul!(psi::cmps, x::Number)
     rmul!(psi.R, x)
     return psi
 end
+function axpy!(a::Number, X::cmps, Y::cmps)
+    axpy!(a, X.Q, Y.Q)
+    axpy!(a, X.R, Y.R)
+    return Y
+end
 
 length(iter::cmps) = length(iter.Q.data) + length(iter.R.data)
 iterate(iter::cmps) = (iter.Q[1], 1)
