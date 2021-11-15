@@ -68,7 +68,7 @@ function A_canonical(T::cmpo, psi::qbimps)
         δ = (BR_Q1 - BR_Q - Id_Q * (BR_Q1[1]-BR_Q[1])).data |> norm
         ix += 1
         BR_Q = BR_Q1
-        println(ix, ' ', δ)
+        #println(ix, ' ', δ)
     end
 
     (δ > 1e-12) && @warn "power method not converged for psi.B, δ=$δ "
