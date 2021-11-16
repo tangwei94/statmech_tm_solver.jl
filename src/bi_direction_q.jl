@@ -27,23 +27,27 @@ function A_canonical(T::cmpo, psi::qbimps)
     @tensor bR[-1, -2; -3] := AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
     BR_R, _ = linsolve(lopR, -bR, BR_R)
 
-    function lopQ(vQ::TensorMap{ComplexSpace, 1, 1})
-        @tensor TvQ[-1; -2] := vQ[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] #+ 
-                               #(-1.0) * vQ[-1, -2]
-        return TvQ
-    end
+    #function lopQ(vQ::TensorMap{ComplexSpace, 1, 1})
+    #    @tensor TvQ[-1; -2] := vQ[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] #+ 
+    #                           #(-1.0) * vQ[-1, -2]
+    #    return TvQ
+    #end
+    lopQ = transf_mat(AR, AR)
+    lopQ_T = transf_mat_T(AR, AR)
     @tensor bQ[-1; -2] := BR_R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] +
                           AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3]
     # use "power method" to solve BR_Q
     Id_Q = id(ℂ^get_chi(psi.B))
+    _, vQL = eigsolve(lopQ_T, Id_Q, 1)
+    vQL = vQL[1] / tr(vQL[1] * Id_Q')
     δ = 999
     ix = 0
     while δ > 1e-12 && ix < 100
-        BR_Q1 = lopQ(BR_Q) + bQ
-        δ = (BR_Q1 - BR_Q - Id_Q * (BR_Q1[1]-BR_Q[1])).data |> norm
+        BR_Q1 = lopQ(BR_Q) - tr(vQL' * BR_Q) * Id_Q + bQ
+        δ = (BR_Q1 - BR_Q).data |> norm
+        #(BR_Q1 - BR_Q).data |> println
         ix += 1
-        BR_Q = BR_Q1
-        #println(ix, ' ', δ)
+        BR_Q = BR_Q1 
     end
 
     (δ > 1e-12) && @warn "power method not converged for psi.B, δ=$δ "
@@ -78,7 +82,7 @@ function B_canonical(T::cmpo, psi::qbimps)
         return Tv
     end
 
-    _, AL = eigsolve(lop, AL, 1)
+    _, AL = eigsolve(lop, AL, 1, :LR)
     AL = AL[1]
 
     return qbimps(AL, BL)

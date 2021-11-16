@@ -73,11 +73,13 @@ function energy_quantum_ising(psi::TensorMap{ComplexSpace, 2, 1}, Γ::Number)
     w = w[1]
     vr = vr[1]
     vl = vl[1]
+    vr = vr / tr(vl' * vr)
 
-    @tensor term1[:] := vl'[1, 2] * psi'[5, 1, 3] * σx[3, 4] * psi[2, 4, 6] * psi'[8, 5, 7] * psi[6, 7, 9] * vr[9, 8]
-    @tensor term2[:] := vl'[1, 2] * psi'[4, 1, 3] * psi[2, 3, 5] * psi'[8, 4, 6] * σx[6, 7] * psi[5, 7, 9] * vr[9, 8]
-    @tensor term3[:] := vl'[1, 2] * psi'[5, 1, 3] * σz[3, 4] * psi[2, 4, 6] * psi'[9, 5, 7] * σz[7, 8] * psi[6, 8, 10] * vr[10, 9]
+    @tensor term_1site[:] := vl'[1, 2] * psi'[5, 1, 3] * σx[3, 4] * psi[2, 4, 6] * vr[6, 5]
+    @tensor term_2site[:] := vl'[1, 2] * psi'[5, 1, 3] * σz[3, 4] * psi[2, 4, 6] * psi'[9, 5, 7] * σz[7, 8] * psi[6, 8, 10] * vr[10, 9]
 
-    return (-Γ*term1/2 - Γ*term2/2 - term3)[1] / tr(vl' * vr) / w^2 
+    term_1site = term_1site / w * (-Γ)
+    term_2site = term_2site / w^2 * (-1)
 
+    return (term_1site + term_2site)[1]
 end

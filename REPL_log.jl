@@ -8,14 +8,16 @@ using statmech_tm_solver
 using KrylovKit
 
 psi = qbimps(rand, 2, 2, 1)
-Γ=0.7025
+Γ=1.0
 
 T = cmpo_ising(Γ)
 energy_quantum_ising(psi.A, Γ)
 
-psi = B_canonical(T, psi)
+println("B canonical")
+psi = B_canonical(T, psi);
 energy_quantum_ising(psi.A, Γ)
-psi = A_canonical(T, psi)
+println("A canonical")
+psi = A_canonical(T, psi);
 energy_quantum_ising(psi.A, Γ)
 
 for ix in 1:100
