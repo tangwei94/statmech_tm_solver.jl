@@ -32,22 +32,14 @@ function A_canonical(T::cmpo, psi::qbimps)
     lopQ_T = transf_mat_T(AR, AR)
     @tensor bQ[-1; -2] := BR_R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] +
                           AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3]
-    # use "power method" to solve BR_Q
-    # todo: use extrapolation to speed up the power procedure.
     Id_Q = id(ℂ^chi)
     _, vQL = eigsolve(lopQ_T, Id_Q, 1)
     vQL = vQL[1] / tr(vQL[1] * Id_Q')
-    δ = 999
-    ix = 0
-    while δ > 1e-12 && ix < 1000
-        BR_Q1 = lopQ(BR_Q) - tr(vQL' * BR_Q) * Id_Q + bQ
-        δ = (BR_Q1 - BR_Q).data |> norm
-        ix += 1
-        BR_Q = BR_Q1 
-    end
+    BR_Q, _ = linsolve(v -> lopQ(v)-tr(vQL'*v)*Id_Q, -bQ, BR_Q)
 
+    δ = (lopQ(BR_Q) - tr(vQL'*BR_Q)*Id_Q + bQ - BR_Q).data |> norm
     Λ = - tr(vQL' * BR_Q)
-    (δ > 1e-12) && @warn "power method not converged for psi.B, δ=$δ "
+    (δ > 1e-12) && @warn "fixed point equation for psi.B, δ=$δ"
 
     BR = cmps(BR_Q, BR_R)
 

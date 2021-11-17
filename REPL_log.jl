@@ -7,9 +7,9 @@ using TensorOperations
 using statmech_tm_solver
 using KrylovKit
 
-chi=6
+chi = 12
 psi = qbimps(rand, chi, 2, 1)
-Γ=1.
+Γ = 1.
 
 T = cmpo_ising(Γ)
 energy_quantum_ising(psi.A, Γ)
