@@ -126,3 +126,20 @@ function entanglement_spectrum(psi::cmps)
     _, s, _ = tsvd(C)
     return diag(s.data)
 end
+
+function expand(psi::cmps, chi::Integer)
+    chi0, d = get_chi(psi), get_d(psi)
+    if chi <= chi0
+        @warn "chi not larger than current bond D, not expanded "
+        return psi
+    end
+
+    Q_arr = 1e-3*rand(ComplexF64, chi, chi)
+    R_arr = 1e-3*rand(ComplexF64, chi, d, chi)
+    Q_arr[1:chi0, 1:chi0] += toarray(psi.Q)
+    R_arr[1:chi0, :, 1:chi0] += toarray(psi.R)
+    Q = TensorMap(Q_arr, ℂ^chi, ℂ^chi)
+    R = arr_to_TensorMap(R_arr)
+
+    return cmps(Q, R)
+end

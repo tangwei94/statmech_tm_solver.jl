@@ -225,3 +225,17 @@ function entanglement_spectrum(psi::TensorMap{ComplexSpace, 2, 1})
     _, s, _ = tsvd(C)
     return diag(s.data)
 end
+
+function expand(psi::TensorMap{ComplexSpace, 2, 1}, chi::Integer)
+    chi0, d = get_chi(psi), get_d(psi)
+    if chi <= chi0
+        @warn "chi not larger than current bond D, not expanded "
+        return psi
+    end
+
+    phi_arr = 1e-3*rand(ComplexF64, chi, d, chi)
+    phi_arr[1:chi0, :, 1:chi0] += toarray(psi)
+    phi = arr_to_TensorMap(phi_arr)
+
+    return phi
+end
