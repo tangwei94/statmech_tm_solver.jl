@@ -13,7 +13,7 @@ Gammas = [0.75, 0.95, 1.00, 1.05, 1.25]
 fitting_ranges = [(0, None), (1, None), (0, -1), (1, None), (1, None)]
 for Gamma, fitting_range in zip(Gammas, fitting_ranges):
     num_chi = len(glob.glob("result_qbimps_chi*_Gamma{:.2f}.txt".format(Gamma)))
-    chis = chis_full[:num_chi]
+    chis = np.array(chis_full[:num_chi])
 
     data_names = ["result_qbimps_chi{:d}_Gamma{:.2f}.txt".format(chi, Gamma) for chi in chis]
     fig, axes = plt.subplots(3, 1, figsize=(6,12))
