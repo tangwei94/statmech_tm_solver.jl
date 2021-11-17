@@ -29,7 +29,8 @@ export  act,
         free_energy,
         mps_add,
         left_canonical_QR,
-        right_canonical_QR
+        right_canonical_QR,
+        entanglement_spectrum
 
 export  toarray,
         get_chi,

@@ -217,3 +217,11 @@ function left_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-1
 
     return R0, psi_L
 end
+
+function entanglement_spectrum(psi::TensorMap{ComplexSpace, 2, 1})
+    X, _ = left_canonical_QR(psi)
+    Y, _ = right_canonical_QR(psi)
+    C = X * Y' 
+    _, s, _ = tsvd(C)
+    return diag(s.data)
+end

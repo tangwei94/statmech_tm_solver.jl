@@ -1,4 +1,4 @@
-# algorithm 4 in section 5.4 of https://www.annualreviews.org/doi/10.1146/annurev-conmatphys-031016-025507
+# algorithm 4 in section 5.4 of https://www.annualreviews.org/doi/10.1146/annurev-conmatphys-031016-025507 applied to cMPO
 
 struct qbimps
     A::TensorMap{ComplexSpace, 2, 1}

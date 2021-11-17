@@ -118,3 +118,11 @@ function right_canonical(psi::cmps)
     
     return Y, cmps(Q, R)
 end
+
+function entanglement_spectrum(psi::cmps)
+    X, _ = left_canonical(psi)
+    Y, _ = right_canonical(psi)
+    C = X * Y' 
+    _, s, _ = tsvd(C)
+    return diag(s.data)
+end
