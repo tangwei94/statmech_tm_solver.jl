@@ -2,7 +2,7 @@
 using TensorKit
 using statmech_tm_solver
 
-chi = 64
+chi = 128
 psi = qbimps(rand, chi, 2, 1)
 Γ = 1.
 
