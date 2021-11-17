@@ -30,7 +30,8 @@ export  act,
         mps_add,
         left_canonical_QR,
         right_canonical_QR,
-        entanglement_spectrum
+        entanglement_spectrum, 
+        expand
 
 export  toarray,
         get_chi,
@@ -39,8 +40,7 @@ export  toarray,
 
 export  mpo_triangular_AF_ising,
         mpo_triangular_AF_ising_alternative,
-        mpo_square_ising,
-        energy_quantum_ising
+        mpo_square_ising
 
 export  bimps, 
         A_canonical, 
@@ -52,7 +52,9 @@ export  cmps,
 export  cmpo
 
 export  cmpo_ising,
-        cmpo_xxz
+        energy_quantum_ising,
+        cmpo_xxz,
+        energy_quantum_xxz
 
 export  qbimps
 
