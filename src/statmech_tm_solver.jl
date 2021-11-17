@@ -51,7 +51,8 @@ export  cmps,
 
 export  cmpo
 
-export  cmpo_ising
+export  cmpo_ising,
+        cmpo_xxz
 
 export  qbimps
 
