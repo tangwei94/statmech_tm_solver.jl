@@ -7,21 +7,17 @@ using TensorOperations
 using statmech_tm_solver
 using KrylovKit
 
-psi = qbimps(rand, 2, 2, 1)
-Γ=1.0
+
+chi=4
+psi = qbimps(rand, chi, 2, 1)
+Γ=1.
 
 T = cmpo_ising(Γ)
 energy_quantum_ising(psi.A, Γ)
+println("========================================================================")
 
-println("B canonical")
-psi = B_canonical(T, psi);
-energy_quantum_ising(psi.A, Γ)
-println("A canonical")
-psi = A_canonical(T, psi);
-energy_quantum_ising(psi.A, Γ)
-
-for ix in 1:100
-    psi = B_canonical(T, psi)
+for ix in 1:10
     psi = A_canonical(T, psi)
-    println(energy_quantum_ising(psi.A, Γ))
+    psi = B_canonical(T, psi)
+    println(energy_quantum_ising(psi.A, Γ)|>real, ' ', -4/pi)
 end
