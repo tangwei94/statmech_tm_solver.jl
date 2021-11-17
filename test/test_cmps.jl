@@ -23,6 +23,7 @@
     @test lop_T_v_arr ≈ toarray(lop_T(v))
 end
 
+# todo: improve the test cases for cmps canonical
 @timedtestset "test left canonical for cmps" for ix in 1:10
     ψ = cmps(rand, 8, 3)
     _, ψL = left_canonical(ψ)
@@ -31,6 +32,7 @@ end
     @test isapprox(result, TensorMap(zeros, ComplexF64, ℂ^8, ℂ^8), atol=sqrt(eps()))
 end
 
+# todo: improve the test cases for cmps canonical
 @timedtestset "test right canonical for cmps" for ix in 1:10
     ψ = cmps(rand, 8, 3)
     _, ψR = right_canonical(ψ)

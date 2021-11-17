@@ -81,7 +81,7 @@ function left_canonical(psi::cmps)
     # solve the fixed point equation
     vl = TensorMap(rand, ComplexF64, ℂ^chi, ℂ^chi)
     lop_T = transf_mat_T(psi, psi)
-    w, vl = eigsolve(lop_T, vl, 1)
+    w, vl = eigsolve(lop_T, vl, 1, :LR)
     w = w[1]
     vl = vl[1]
 
@@ -103,7 +103,7 @@ function right_canonical(psi::cmps)
     # solve the fixed point equation
     vr = TensorMap(rand, ComplexF64, ℂ^chi, ℂ^chi)
     lop = transf_mat(psi, psi)
-    w, vr = eigsolve(lop, vr, 1)
+    w, vr = eigsolve(lop, vr, 1, :LR)
     w = w[1]
     vr = vr[1]
 
