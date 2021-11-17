@@ -35,11 +35,19 @@ function A_canonical(T::cmpo, psi::qbimps)
     Id_Q = id(ℂ^chi)
     _, vQL = eigsolve(lopQ_T, Id_Q, 1)
     vQL = vQL[1] / tr(vQL[1] * Id_Q')
-    BR_Q, _ = linsolve(v -> lopQ(v)-tr(vQL'*v)*Id_Q, -bQ, BR_Q)
+    BR_Q, _ = linsolve(v -> lopQ(v)-tr(vQL'*v)*Id_Q-v, -bQ, BR_Q)
 
-    δ = (lopQ(BR_Q) - tr(vQL'*BR_Q)*Id_Q + bQ - BR_Q).data |> norm
+    # improve the linsolve result by a few more power iterations
+    ix, δ = 0, 999
+    while δ > 1e-12 && ix < 100 
+        BR_Q1 = lopQ(BR_Q) - tr(vQL'*BR_Q)*Id_Q + bQ
+        δ = (BR_Q1 - BR_Q).data / chi*2 |> norm 
+        BR_Q = BR_Q1
+        ix += 1
+    end
+
     Λ = - tr(vQL' * BR_Q)
-    (δ > 1e-12) && @warn "fixed point equation for psi.B, δ=$δ"
+    (δ > 1e-12) && @warn "fixed point equation not fully converged for psi.B. δ=$δ"
 
     BR = cmps(BR_Q, BR_R)
 
