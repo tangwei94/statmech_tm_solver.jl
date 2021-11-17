@@ -2,9 +2,9 @@
 using TensorKit
 using statmech_tm_solver
 
-chi = 128
+chi = 64
 psi = qbimps(rand, chi, 2, 1)
-Γ = 1.
+Γ = 1.25
 
 T = cmpo_ising(Γ)
 energy_quantum_ising(psi.A, Γ)
@@ -22,7 +22,7 @@ end
 sA = entanglement_spectrum(psi.A)
 sB = entanglement_spectrum(psi.B)
 
-io = open("result_qbimps_chi$chi.txt", "w")
+io = open("result_qbimps_chi$(chi)_Gamma$(Γ).txt", "w")
 for s in sA
     print(io, "$s ")
 end
