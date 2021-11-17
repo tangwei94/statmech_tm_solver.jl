@@ -12,12 +12,13 @@ function qbimps(f, chi::Integer, dp::Integer, dv::Integer)
 end
 
 function A_canonical(T::cmpo, psi::qbimps)
-    Y, AR = right_canonical_QR(psi.A, 1e-12)
-    Yinv = inv(Y')'
+    _, AR = right_canonical_QR(psi.A, 1e-12)
 
-    @tensor BR_R[-1, -2; -3] := psi.B.R[1, -2, 2] * Yinv'[-1, 1] * Y'[2, -3]
-    BR_Q = Yinv' * psi.B.Q * Y'
-    BR = cmps(BR_Q, BR_R)
+    chi = get_chi(psi.B)
+    d = get_d(psi.B)
+
+    BR_R = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^d, ℂ^chi)
+    BR_Q = TensorMap(rand, ComplexF64, ℂ^chi, ℂ^chi)
 
     function lopR(vR::TensorMap{ComplexSpace, 2, 1})
         @tensor TvR[-1, -2; -3] := vR[1, 3, 4] * AR[-1, 2, 1] * T.P[-2, 5, 2, 3] * AR'[4, -3, 5] +
@@ -27,17 +28,12 @@ function A_canonical(T::cmpo, psi::qbimps)
     @tensor bR[-1, -2; -3] := AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
     BR_R, _ = linsolve(lopR, -bR, BR_R)
 
-    #function lopQ(vQ::TensorMap{ComplexSpace, 1, 1})
-    #    @tensor TvQ[-1; -2] := vQ[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] #+ 
-    #                           #(-1.0) * vQ[-1, -2]
-    #    return TvQ
-    #end
     lopQ = transf_mat(AR, AR)
     lopQ_T = transf_mat_T(AR, AR)
     @tensor bQ[-1; -2] := BR_R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] +
                           AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3]
     # use "power method" to solve BR_Q
-    Id_Q = id(ℂ^get_chi(psi.B))
+    Id_Q = id(ℂ^chi)
     _, vQL = eigsolve(lopQ_T, Id_Q, 1)
     vQL = vQL[1] / tr(vQL[1] * Id_Q')
     δ = 999
@@ -45,31 +41,30 @@ function A_canonical(T::cmpo, psi::qbimps)
     while δ > 1e-12 && ix < 100
         BR_Q1 = lopQ(BR_Q) - tr(vQL' * BR_Q) * Id_Q + bQ
         δ = (BR_Q1 - BR_Q).data |> norm
-        #(BR_Q1 - BR_Q).data |> println
         ix += 1
         BR_Q = BR_Q1 
     end
 
+    Λ = - tr(vQL' * BR_Q)
     (δ > 1e-12) && @warn "power method not converged for psi.B, δ=$δ "
 
     BR = cmps(BR_Q, BR_R)
 
-    #function lop(v::cmps)
-    #    @tensor TvQ[-1; -2] := v.Q[1, 2] * AR[-1, 3, 1] * AR'[2, -2, 3] + 
-    #                           AR[-1, 1, 2] * T.Q[3, 1] * AR'[2, -2, 3] +
-    #                           v.R[1, 3, 4] * AR[-1, 2, 1] * AR'[4, -2, 5] * T.L'[5, 2, 3] 
-    #    @tensor TvR[-1, -2; -3] := v.R[1, 3, 4] * AR[-1, 2, 1] * T.P[-2, 5, 2, 3] * AR'[4, -3, 5] +
-    #                               AR[-1, 2, 1] * T.R[3, -2, 2] * AR'[1, -3, 3]
-    #    return cmps(TvQ, TvR)
-    #end
-
+    println("A canonical. Λ = $Λ")
     return qbimps(AR, BR)
 end
 
 function B_canonical(T::cmpo, psi::qbimps)
-    X, BL = left_canonical(psi.B)
-    Xinv = inv(X)
-    @tensor AL[-1, -2; -3] := psi.A[1, -2, 2] * X[-1, 1] * Xinv[2, -3]
+    _, BL = left_canonical(psi.B)
+
+    #Xinv = inv(X)
+    #@tensor AL[-1, -2; -3] := psi.A[1, -2, 2] * X[-1, 1] * Xinv[2, -3]
+    chi, d = get_chi(psi.A), get_d(psi.A)
+    AL = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^d, ℂ^chi)
+
+    ψL = BL
+    @tensor result[-1; -2] := ψL.Q'[-1, -2] + ψL.Q[-1, -2] + ψL.R[1, 2, -2] * ψL.R'[-1, 1, 2]
+    !isapprox(result, TensorMap(zeros, ComplexF64, ℂ^chi, ℂ^chi), atol=sqrt(eps())) && println("warning!!! ", result)
 
     function lop(v::TensorMap{ComplexSpace, 2, 1})
         @tensor Tv[-1, -2; -3] := 
@@ -82,8 +77,9 @@ function B_canonical(T::cmpo, psi::qbimps)
         return Tv
     end
 
-    _, AL = eigsolve(lop, AL, 1, :LR)
+    w, AL = eigsolve(lop, AL, 1, :LR)
     AL = AL[1]
+    println("B canonical. Λ = ", -w[1])
 
     return qbimps(AL, BL)
 end
