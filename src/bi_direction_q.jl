@@ -63,10 +63,6 @@ function B_canonical(T::cmpo, psi::qbimps)
     chi, d = get_chi(psi.A), get_d(psi.A)
     AL = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^d, ℂ^chi)
 
-    ψL = BL
-    @tensor result[-1; -2] := ψL.Q'[-1, -2] + ψL.Q[-1, -2] + ψL.R[1, 2, -2] * ψL.R'[-1, 1, 2]
-    !isapprox(result, TensorMap(zeros, ComplexF64, ℂ^chi, ℂ^chi), atol=sqrt(eps())) && println("warning!!! ", result)
-
     function lop(v::TensorMap{ComplexSpace, 2, 1})
         @tensor Tv[-1, -2; -3] := 
             v[-1, -2, 1] * BL.Q[1, -3] +
@@ -84,4 +80,3 @@ function B_canonical(T::cmpo, psi::qbimps)
 
     return qbimps(AL, BL)
 end
-

@@ -7,7 +7,7 @@ using TensorOperations
 using statmech_tm_solver
 using KrylovKit
 
-chi = 16
+chi = 8
 psi = qbimps(rand, chi, 2, 1)
 Γ = 1.
 
@@ -15,8 +15,11 @@ T = cmpo_ising(Γ)
 energy_quantum_ising(psi.A, Γ)
 println("========================================================================")
 
-for ix in 1:20
+for ix in 1:100
     psi = A_canonical(T, psi)
     psi = B_canonical(T, psi)
     println(energy_quantum_ising(psi.A, Γ)|>real, ' ', -4/pi)
 end
+
+sA = entanglement_spectrum(psi.A)
+sB = entanglement_spectrum(psi.B)
