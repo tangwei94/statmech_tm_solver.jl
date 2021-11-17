@@ -51,8 +51,8 @@ function A_canonical(T::cmpo, psi::qbimps)
 
     BR = cmps(BR_Q, BR_R)
 
-    println("A canonical. Λ = $Λ")
-    return qbimps(AR, BR)
+    #println("A canonical. Λ = $Λ")
+    return Λ, qbimps(AR, BR)
 end
 
 function B_canonical(T::cmpo, psi::qbimps)
@@ -76,7 +76,8 @@ function B_canonical(T::cmpo, psi::qbimps)
 
     w, AL = eigsolve(lop, AL, 1, :LR)
     AL = AL[1]
-    println("B canonical. Λ = ", -w[1])
+    Λ = -w[1]
+    #println("B canonical. Λ = $Λ")
 
-    return qbimps(AL, BL)
+    return Λ, qbimps(AL, BL)
 end
