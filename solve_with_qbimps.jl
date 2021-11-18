@@ -3,7 +3,7 @@ using TensorKit
 using statmech_tm_solver
 using Printf
 
-Δ = -0.5 
+Δ = 0
 T = cmpo_xxz(Δ)
 println("========================================================================")
 

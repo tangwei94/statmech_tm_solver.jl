@@ -9,8 +9,8 @@ matplotlib.rcParams['font.family'] = 'STIXGeneral'
 plt.rcParams['font.size'] = 15
 
 chis_full = [2, 4, 8, 16, 32, 64, 128]
-Deltas = [-0.50, 0.50, 0.75, 1.00, ]
-fitting_ranges = [(0, None), (3, None), (3, None), (3, None), ]
+Deltas = [-0.50, 0.0, 0.50, 0.75, 1.00, ]
+fitting_ranges = [(0, None), (3, None), (3, None), (3, None), (3, None), ]
 for Delta, fitting_range in zip(Deltas, fitting_ranges):
     num_chi = len(glob.glob("rawdata/result_qbimps_chi*_xxz_Delta{:.2f}.txt".format(Delta)))
     chis = np.array(chis_full[:num_chi])
