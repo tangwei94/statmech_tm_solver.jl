@@ -25,9 +25,10 @@ function A_canonical(T::TensorMap{ComplexSpace, 2, 2}, psi::bimps, tol::Float64=
     end 
 
     # solve BR from the fixed point equation
-    _, BR = eigsolve(lop, BR, 1)
+    λ, BR = eigsolve(lop, BR, 1)
     BR = BR[1]
-    return bimps(AR, BR)
+    λ = λ[1]
+    return λ, bimps(AR, BR)
 end
 
 function B_canonical(T::TensorMap{ComplexSpace, 2, 2}, psi::bimps, tol::Float64=1e-15)
@@ -44,8 +45,9 @@ function B_canonical(T::TensorMap{ComplexSpace, 2, 2}, psi::bimps, tol::Float64=
     end 
 
     # solve AR from the fixed point equation
-    _, AL = eigsolve(lop, AL, 1)
+    λ, AL = eigsolve(lop, AL, 1)
     AL = AL[1]
-    return bimps(AL, BL)
+    λ = λ[1]
+    return λ, bimps(AL, BL)
 end
 
