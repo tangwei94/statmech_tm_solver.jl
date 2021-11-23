@@ -11,7 +11,7 @@ using LinearAlgebra
 identity = Matrix{ComplexF64}(I, 8, 8)
 AQ = rand(ComplexF64, 8, 8)
 AR = rand(ComplexF64, 8, 2, 8)
-ϵ = 1e-6
+ϵ = 1e-12
 
 A = zeros(ComplexF64, 8, 3, 8)
 A0 = zeros(ComplexF64, 8, 3, 8)
@@ -42,5 +42,6 @@ R1 = identity + ϵ * tildeR
 
 using OMEinsum
 
-print(ein"abc,cd->abd"(Q1, R1) ≈ A)
+println(ein"abc,cd->abd"(Q1, R1) ≈ A)
 
+println(ein"abc,abd->cd"(conj(Q1), Q1) ≈ identity)

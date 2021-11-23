@@ -14,16 +14,6 @@ end
 *(psi::cmps, x::Number) = cmps(psi.Q * x, psi.R * x)
 *(x::Number, psi::cmps) = cmps(psi.Q * x, psi.R * x)
 similar(psi::cmps) = cmps(similar(psi.Q), similar(psi.R))
-function rmul!(psi::cmps, x::Number)
-    rmul!(psi.Q, x)
-    rmul!(psi.R, x)
-    return psi
-end
-function axpy!(a::Number, X::cmps, Y::cmps)
-    axpy!(a, X.Q, Y.Q)
-    axpy!(a, X.R, Y.R)
-    return Y
-end
 
 length(iter::cmps) = length(iter.Q.data) + length(iter.R.data)
 iterate(iter::cmps) = (iter.Q[1], 1)
@@ -74,6 +64,16 @@ function transf_mat_T(psi::cmps, phi::cmps)
     end
     return lop_T
 end
+
+function leftorth(psi::cmps)
+    chi = get_chi(psi)
+
+    # calculate Rϵ
+    Rϵ = 0.5 * (psi.Q + psi.Q')
+    
+
+end
+
 
 function left_canonical(psi::cmps)
     chi = get_chi(psi)
