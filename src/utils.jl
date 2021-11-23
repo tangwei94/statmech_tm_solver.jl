@@ -14,3 +14,19 @@ function toarray(t::TensorMap{ComplexSpace})
     t_dims = tuplejoin(dims(codomain(t)), dims(domain(t)))
     return reshape(t.data, t_dims)
 end
+
+@inline get_chi(psi::TensorMap{ComplexSpace, 2, 1}) = dim(domain(psi))
+@inline get_d(psi::TensorMap{ComplexSpace, 2, 1}) = dim(codomain(psi)) ÷ dim(domain(psi))
+
+function arr_to_TensorMap(arr::Array{ComplexF64, 3})
+    chi, d, _ = size(arr)
+    return TensorMap(arr, ℂ^chi*ℂ^d, ℂ^chi)
+end
+function rrule(::typeof(arr_to_TensorMap), arr::Array{ComplexF64, 3})
+    chi, d, _ = size(arr)
+    fwd = TensorMap(arr, ℂ^chi*ℂ^d, ℂ^chi)
+    function arr_to_TensorMap_pushback(f̄wd)
+        return NoTangent(), conj.(reshape(f̄wd.data, (chi, d, chi)))
+    end
+    return fwd, arr_to_TensorMap_pushback
+end

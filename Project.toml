@@ -21,6 +21,14 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 TestExtras = "0.1"
+Optim = "1"
+ChainRulesCore = "1"
+ChainRules = "1"
+TensorOperations = "3"
+TensorKit = "0.10"
+Zygote = "0.6"
+KrylovKit = "0.5"
+FiniteDifferences = "0.12"
 julia = "1"
 
 [extras]
