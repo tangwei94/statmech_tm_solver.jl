@@ -8,48 +8,61 @@ matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 plt.rcParams['font.size'] = 15
 
-chis_full = [2, 4, 8, 16, 32, 64, 128]
-Gammas = [0.75, 0.95, 1.00, 1.05, 1.25]
-fitting_ranges = [(0, None), (1, None), (0, -1), (1, None), (1, None)]
-for Gamma, fitting_range in zip(Gammas, fitting_ranges):
-    num_chi = len(glob.glob("result_qbimps_chi*_Gamma{:.2f}.txt".format(Gamma)))
+chis_full = np.arange(8, 81, 8)
+Deltas = [1.00, ]
+fitting_ranges = [(3, None), ]
+for Delta, fitting_range in zip(Deltas, fitting_ranges):
+    num_chi = len(glob.glob("rawdata/result_qbimps_chi*_ising_Delta{:.2f}.txt".format(Delta)))
     chis = np.array(chis_full[:num_chi])
 
-    data_names = ["result_qbimps_chi{:d}_Gamma{:.2f}.txt".format(chi, Gamma) for chi in chis]
-    fig, axes = plt.subplots(3, 1, figsize=(6,12))
+    data_names = ["rawdata/result_qbimps_chi{:d}_ising_Delta{:.2f}.txt".format(chi, Delta) for chi in chis]
+    fig, axes = plt.subplots(3, 1, figsize=(6,18))
+    #axes = axes.flatten()
 
-    axes[0].set(xlabel=r'$i$', ylabel=r'$s_i$')
-    axes[0].set(yscale='log')
-    axes[0].text(0.5, 0.9, 'Gamma = {:.2f}'.format(Gamma), horizontalalignment='center', transform=axes[0].transAxes, fontsize='small')
+    axes[0].set(xlabel=r'$i$', ylabel=r'$\ln s_i$')
+    axes[0].text(0.5, 0.9, 'Gamma = {:.2f}'.format(Delta), horizontalalignment='center', transform=axes[0].transAxes, fontsize='small')
 
-    axes[1].set(xlabel=r'$i$', ylabel=r'$s_{\mathrm{cmps}} / s_{\mathrm{mps}}$')
+    axes[1].set(xlabel=r'$i$', ylabel=r'$\ln s_i^{\mathrm{cmps}} - \ln s_i^{\mathrm{mps}}$')
 
-    axes[2].set(xlabel=r'$\log \chi$', ylabel=r'$\log (s_{\mathrm{cmps}} / s_{\mathrm{mps}})$')
+    axes[2].set(xlabel=r'$\log \chi$', ylabel='entanglement entropy')
 
     ratios = np.array([])
+    EEs_MPS, EEs_cMPS = np.array([]), np.array([])
+    get_EE = lambda arr: -np.sum(arr * np.log(arr))
     for data_name, chi in zip(data_names, chis):
         f = io.open(data_name, 'r')
         data = np.loadtxt(f)
 
-        axes[0].plot(data[0, :], 'o-', color='tab:blue', label=r'MPS' if chi==2 else None, alpha=0.5)
-        axes[0].plot(data[1, :], 'o-', color='tab:red', label=r'cMPS' if chi==2 else None, alpha=0.5)
+        data[0, :] = data[0, :] / np.sum(data[0, :])
+        data[1, :] = data[1, :] / np.sum(data[1, :])
 
-        axes[1].plot(data[1, :]/data[0, :], 'o-', label=r'$\chi$='+'{:d}'.format(chi), alpha=0.5)
+        axes[0].plot(np.log(data[0, :]), 'o-', color='tab:blue', label=r'MPS' if chi==8 else None, alpha=0.5)
+        axes[0].plot(np.log(data[1, :]), 'o-', color='tab:red', label=r'cMPS' if chi==8 else None, alpha=0.5)
+
+        print(chi, np.sum(data[0, :]), np.sum(data[1, :]))
+
+        axes[1].plot(np.log(data[1, :]/data[0, :]), 'o-', label=r'$\chi$='+'{:d}'.format(chi), alpha=0.5)
 
         ratios = np.append(ratios, np.average(data[1, :chi//2]/data[0, :chi//2]))
+        EEs_MPS = np.append(EEs_MPS, get_EE(data[0, :]))
+        EEs_cMPS = np.append(EEs_cMPS, get_EE(data[1, :]))
 
-    X, Y = np.log(chis), np.log(ratios)
-    axes[2].plot(X, Y, 'o-', alpha=0.5, label='numerical data')
+    X, Y = np.log(chis), EEs_MPS
+    axes[2].plot(X, Y, 'o-', color='tab:blue', alpha=0.5, label='iMPS')
     k, c = np.polyfit(X[fitting_range[0]:fitting_range[1]], Y[fitting_range[0]:fitting_range[1]], 1)
-    axes[2].plot(X, k*X+c, '-', label='linear fit: Y = {:.4f} X + {:.4f}'.format(k,c))
-    axes[2].text(0.9, 0.7, 'ratio = {:.4f} * chi^({:.4f})'.format(np.exp(c), k), horizontalalignment='right', transform=axes[2].transAxes, fontsize='small')
+    axes[2].plot(X, k*X+c, '--', color='tab:blue', label='iMPS fit, S={:.3f}*log(chi){:+.3f}'.format(k, c))
+
+    X, Y = np.log(chis), EEs_cMPS
+    axes[2].plot(X, Y, 'o-', color='tab:red', alpha=0.5, label='cMPS')
+    k, c = np.polyfit(X[fitting_range[0]:fitting_range[1]], Y[fitting_range[0]:fitting_range[1]], 1)
+    axes[2].plot(X, k*X+c, '--', color='tab:red', label='cMPS fit, S={:.3f}*log(chi){:+.3f}'.format(k, c))
 
     for ax in axes:
         handles, labels = ax.get_legend_handles_labels()
         ax.legend(handles, labels, fontsize = 'small') 
 
     fig.tight_layout()
-    plt.savefig("result_qbimps_entanglement_Gamma{:.2f}.pdf".format(Gamma), bbox_inches='tight')
+    plt.savefig("result_qbimps_entanglement_Delta{:.2f}.pdf".format(Delta), bbox_inches='tight')
     plt.close(fig)
 
-    print('plot Gamma={:.2f} done'.format(Gamma))
+    print('plot Delta={:.2f} done'.format(Delta))
