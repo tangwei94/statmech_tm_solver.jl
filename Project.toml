@@ -20,6 +20,7 @@ TestExtras = "5ed8adda-3752-4e41-b88a-e8b09835ee3a"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+ChainRulesCore = "1"
 ChainRules = "1"
 TensorOperations = "3"
 TensorKit = "0.10"
