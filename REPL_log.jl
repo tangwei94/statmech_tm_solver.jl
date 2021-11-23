@@ -6,20 +6,41 @@ using TensorKit
 using TensorOperations
 using statmech_tm_solver
 using KrylovKit
+using LinearAlgebra
 
-chi = 8
-psi = qbimps(rand, chi, 2, 1)
-Γ = 1.
+identity = Matrix{ComplexF64}(I, 8, 8)
+AQ = rand(ComplexF64, 8, 8)
+AR = rand(ComplexF64, 8, 2, 8)
+ϵ = 1e-6
 
-T = cmpo_ising(Γ)
-energy_quantum_ising(psi.A, Γ)
-println("========================================================================")
+A = zeros(ComplexF64, 8, 3, 8)
+A0 = zeros(ComplexF64, 8, 3, 8)
+A0[:, 1, :] = identity
+A[:, 1, :] = identity + ϵ * AQ
+A[:, 2:end, :] = sqrt(ϵ) * AR
 
-for ix in 1:100
-    psi = A_canonical(T, psi)
-    psi = B_canonical(T, psi)
-    println(energy_quantum_ising(psi.A, Γ)|>real, ' ', -4/pi)
-end
+Q, R = qr(reshape(A, (24, 8)))
 
-sA = entanglement_spectrum(psi.A)
-sB = entanglement_spectrum(psi.B)
+tildeR = 0.5 * (AQ + AQ')
+
+Ys = Array(1:8)
+Xs = Array(transpose(1:8))
+Xs = repeat(Xs, 8, 1)
+Ys = repeat(Ys, 1, 8) 
+
+tildeR[Xs .< Ys] .= 0
+tildeR -= 0.5 * Diagonal(tildeR)
+
+tildeQQ = AQ - tildeR 
+tildeQR = AR
+
+Q1 = zeros(ComplexF64, 8, 3, 8)
+Q1[:, 1, :] = identity + ϵ * tildeQQ
+Q1[:, 2:end, :] = sqrt(ϵ) * tildeQR
+
+R1 = identity + ϵ * tildeR
+
+using OMEinsum
+
+print(ein"abc,cd->abd"(Q1, R1) ≈ A)
+
