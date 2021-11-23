@@ -82,4 +82,4 @@ function B_canonical(T::cmpo, psi::qbimps)
     return Λ, qbimps(AL, BL)
 end
 
-expand(psi::qbimps, chi::Integer) = qbimps(expand(psi.A, chi), expand(psi.B, chi))
+expand(psi::qbimps, chi::Integer, perturb::Float64) = qbimps(expand(psi.A, chi, perturb), expand(psi.B, chi, perturb))

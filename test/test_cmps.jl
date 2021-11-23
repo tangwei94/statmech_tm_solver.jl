@@ -40,3 +40,22 @@ end
     @tensor result[-1; -2] := ψR.Q'[-1, -2] + ψR.Q[-1, -2] + ψR.R[-1, 2, 1] * ψR.R'[1, -2, 2]
     @test isapprox(result, TensorMap(zeros, ComplexF64, ℂ^8, ℂ^8), atol=sqrt(eps()))
 end
+
+#@timedtestset "normalized after canonicalization" for ix in 1:10
+#    ψ = cmps(rand, 9, 4)
+#    _, ψR = right_canonical(ψ)
+#    X, _ = left_canonical(ψR)
+#    _, s, _ = tsvd(X)
+#    s = diag(s.data)
+#
+#    @test isapprox(sum(s .^ 2), 1, rtol=eps()^(1/4))
+#
+#    ψ = cmps(rand, 9, 4)
+#    _, ψL = left_canonical(ψ)
+#    Y, _ = right_canonical(ψL)
+#    _, s, _ = tsvd(Y)
+#    s = diag(s.data)
+#
+#    @test isapprox(sum(s .^ 2), 1, rtol=eps()^(1/4))
+#end
+#

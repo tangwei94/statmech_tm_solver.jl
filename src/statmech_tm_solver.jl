@@ -30,7 +30,8 @@ export  act,
         mps_add,
         left_canonical_QR,
         right_canonical_QR,
-        entanglement_spectrum, 
+        entanglement_spectrum,
+        entanglement_entropy, 
         expand
 
 export  toarray,

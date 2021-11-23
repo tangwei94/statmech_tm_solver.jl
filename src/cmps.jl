@@ -120,22 +120,27 @@ function right_canonical(psi::cmps)
 end
 
 function entanglement_spectrum(psi::cmps)
-    X, _ = left_canonical(psi)
+    _, psi = left_canonical(psi)
     Y, _ = right_canonical(psi)
-    C = X * Y' 
-    _, s, _ = tsvd(C)
-    return diag(s.data)
+    _, s, _ = tsvd(Y')
+    s = diag(s.data) .^ 2
+    return s ./ sum(s)
 end
 
-function expand(psi::cmps, chi::Integer)
+function entanglement_entropy(psi::cmps)
+    s = entanglement_spectrum(psi)
+    return -sum(s .* log.(s))
+end
+
+function expand(psi::cmps, chi::Integer, perturb::Float64=1e-3)
     chi0, d = get_chi(psi), get_d(psi)
     if chi <= chi0
         @warn "chi not larger than current bond D, not expanded "
         return psi
     end
 
-    Q_arr = 1e-3*rand(ComplexF64, chi, chi)
-    R_arr = 1e-3*rand(ComplexF64, chi, d, chi)
+    Q_arr = perturb*rand(ComplexF64, chi, chi)
+    R_arr = perturb*rand(ComplexF64, chi, d, chi)
     Q_arr[1:chi0, 1:chi0] += toarray(psi.Q)
     R_arr[1:chi0, :, 1:chi0] += toarray(psi.R)
     Q = TensorMap(Q_arr, ℂ^chi, ℂ^chi)

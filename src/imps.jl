@@ -219,21 +219,26 @@ function left_canonical_QR(psi::TensorMap{ComplexSpace, 2, 1}, tol::Float64=1e-1
 end
 
 function entanglement_spectrum(psi::TensorMap{ComplexSpace, 2, 1})
-    X, _ = left_canonical_QR(psi)
+    _, psi = left_canonical_QR(psi)
     Y, _ = right_canonical_QR(psi)
-    C = X * Y' 
-    _, s, _ = tsvd(C)
-    return diag(s.data)
+    _, s, _ = tsvd(Y')
+    s = diag(s.data) .^ 2
+    return s ./ sum(s)
 end
 
-function expand(psi::TensorMap{ComplexSpace, 2, 1}, chi::Integer)
+function entanglement_entropy(psi::TensorMap{ComplexSpace, 2, 1})
+    s = entanglement_spectrum(psi)
+    return -sum(s .* log.(s))
+end
+
+function expand(psi::TensorMap{ComplexSpace, 2, 1}, chi::Integer, perturb::Float64=1e-3)
     chi0, d = get_chi(psi), get_d(psi)
     if chi <= chi0
         @warn "chi not larger than current bond D, not expanded "
         return psi
     end
 
-    phi_arr = 1e-3*rand(ComplexF64, chi, d, chi)
+    phi_arr = perturb*rand(ComplexF64, chi, d, chi)
     phi_arr[1:chi0, :, 1:chi0] += toarray(psi)
     phi = arr_to_TensorMap(phi_arr)
 
