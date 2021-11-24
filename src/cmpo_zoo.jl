@@ -96,3 +96,19 @@ function energy_quantum_xxz(psi::TensorMap{ComplexSpace, 2, 1}, Δ::Number)
 
     return result[1]
 end
+
+function cmpo_ising_realtime(Γ::Number)
+    Q = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
+    L = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^1, ℂ^2)
+    R = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^1, ℂ^2)
+    P = TensorMap(zeros, ComplexF64, ℂ^1*ℂ^2, ℂ^2*ℂ^1)
+
+    Q[1, 2] = Γ * 1im
+    Q[2, 1] = Γ * 1im
+    L[1, 1, 1] = 1.0
+    L[2, 1, 2] = -1.0
+    R[1, 1, 1] = 1.0 * 1im
+    R[2, 1, 2] = -1.0 * 1im
+
+    return cmpo(Q, L, R, P)
+end

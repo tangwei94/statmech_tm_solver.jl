@@ -55,7 +55,8 @@ export  cmpo
 export  cmpo_ising,
         energy_quantum_ising,
         cmpo_xxz,
-        energy_quantum_xxz
+        energy_quantum_xxz,
+        cmpo_ising_realtime
 
 export  qbimps
 
