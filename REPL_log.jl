@@ -8,6 +8,20 @@ using statmech_tm_solver
 using KrylovKit
 using LinearAlgebra
 
+####################################################################
+# MPO for the triangular AF Ising
+T = mpo_triangular_AF_ising()
+Tb = mpo_triangular_AF_ising_alternative()
+T_vonb, T_tob = mpo_triangular_AF_ising_adapter()
+
+chi = 32
+psi = quickload("ckpt_variational_chi$(chi)")
+_, psi = iTEBD_truncate(act(T_tob, psi), chi)
+
+nonherm_cost_func(Tb, psi)
+
+####################################################################
+
 identity = Matrix{ComplexF64}(I, 8, 8)
 AQ = rand(ComplexF64, 8, 8)
 AR = rand(ComplexF64, 8, 2, 8)

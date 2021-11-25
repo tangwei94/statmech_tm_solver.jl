@@ -62,8 +62,7 @@ function rrule(::typeof(ovlp), psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMa
     return fwd, ovlp_pushback
 end
 
-function nonherm_cost_func(T::TensorMap{ComplexSpace, 2, 2}, psi_arr::Array{ComplexF64, 3})
-    psi = arr_to_TensorMap(psi_arr)
+function nonherm_cost_func(T::TensorMap{ComplexSpace, 2, 2}, psi::TensorMap{ComplexSpace, 2, 1})
     Tpsi = act(T, psi) 
 
     up = ovlp(Tpsi, Tpsi) * ovlp(psi, psi)

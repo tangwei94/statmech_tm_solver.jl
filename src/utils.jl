@@ -30,3 +30,30 @@ function rrule(::typeof(arr_to_TensorMap), arr::Array{ComplexF64, 3})
     end
     return fwd, arr_to_TensorMap_pushback
 end
+
+"""
+    quicksave(name::String, psi::TensorMap{ComplexSpace, 2, 1})
+
+    Save the mps local tensor `psi` to a `.jld2` file.
+"""
+function quicksave(name::String, psi::TensorMap{ComplexSpace, 2, 1})
+    # todo: get convert(Dict, t::AbstractTensorMap) in the manual to work with JLD2?
+    chi, d = get_chi(psi), get_d(psi)
+    psi_dict = Dict("chi" => chi,
+                    "d" => d,
+                    "data" => psi.data
+    )
+
+    save("$(name).jld2", psi_dict)
+end
+
+"""
+    quickload(name::String)
+
+    load the mps local tensor `psi` from a `.jld2` file.
+"""
+function quickload(name::String)
+    psi_dict = load("$(name).jld2")
+    chi, d = psi_dict["chi"], psi_dict["d"]
+    return TensorMap(psi_dict["data"], ℂ^chi*ℂ^d, ℂ^chi)
+end

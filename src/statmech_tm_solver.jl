@@ -10,6 +10,7 @@ using Random
 using KrylovKit
 using TensorKit
 using TensorOperations
+using JLD2
 
 using ChainRules
 using ChainRulesCore
@@ -37,7 +38,9 @@ export  act,
 export  toarray,
         get_chi,
         get_d,
-        arr_to_TensorMap
+        arr_to_TensorMap,
+        quicksave,
+        quickload
 
 export  mpo_triangular_AF_ising,
         mpo_triangular_AF_ising_alternative,
