@@ -2,7 +2,7 @@
     psi = bimps(rand, 9, 4)
     T = mpo_triangular_AF_ising_alternative()
 
-    psi_a = A_canonical(T, psi)
+    _, psi_a = A_canonical(T, psi)
 
     # test psi_a.A is right canonical
     A_tmp = permute(psi_a.A, (1, ), (2, 3))
@@ -19,7 +19,7 @@ end
     psi = bimps(rand, 9, 4)
     T = mpo_triangular_AF_ising_alternative()
 
-    psi_b = B_canonical(T, psi)
+    _, psi_b = B_canonical(T, psi)
 
     # test psi_b.B is left canonical
     @test psi_b.B' * psi_b.B ≈ id(ℂ^9) 

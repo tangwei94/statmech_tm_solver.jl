@@ -15,7 +15,7 @@ using ChainRules
 using ChainRulesCore
 import ChainRulesCore: rrule, frule
 import Base: +, -, *, iterate, length, getindex, similar
-import KrylovKit: leftorth, rightorth
+import TensorKit: leftorth, rightorth
 
 export  act,
         transf_mat,
