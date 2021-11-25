@@ -34,6 +34,22 @@ function mpo_triangular_AF_ising_alternative()
     return T
 end
 
+"""
+    mpo_triangular_AF_ising_adapter()
+
+    generate an MPO that converts the boundary MPS from the basis of `mpo_triangular_AF_ising_alternative()` to the basis of `mpo_triangular_AF_ising()`
+"""
+function mpo_triangular_AF_ising_adapter()
+    p = TensorMap(zeros, ComplexF64, ℂ^4*ℂ^4, ℂ^4)
+    m = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^4*ℂ^4)
+
+    p[1, 1, 1] = p[2, 2, 2] = p[3, 3, 3] = p[4, 4, 4] = 1
+    m[1, 1, 1] = m[1, 1, 2] = m[1, 3, 1] = m[1, 3, 2] = 1
+    m[2, 2, 3] = m[2, 2, 4] = m[2, 4, 3] = m[2, 4, 4] = 1
+    @tensor T[-1, -2; -3, -4] := p[-1, 1, -3] * m[-2, 1, -4]
+    return T
+end
+
 function mpo_square_ising(beta::Float64)
     # ising model on square lattice
     δ = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^2, ℂ^2*ℂ^2)
