@@ -103,12 +103,12 @@ function cmpo_ising_realtime(Γ::Number)
     R = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^1, ℂ^2)
     P = TensorMap(zeros, ComplexF64, ℂ^1*ℂ^2, ℂ^2*ℂ^1)
 
-    Q[1, 2] = Γ * 1im
-    Q[2, 1] = Γ * 1im
+    Q[1, 2] = Γ * -1im
+    Q[2, 1] = Γ * -1im
     L[1, 1, 1] = 1.0
     L[2, 1, 2] = -1.0
-    R[1, 1, 1] = 1.0 * 1im
-    R[2, 1, 2] = -1.0 * 1im
+    R[1, 1, 1] = 1.0 * (-1im)
+    R[2, 1, 2] = -1.0 * (-1im)
 
     return cmpo(Q, L, R, P)
 end
