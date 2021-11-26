@@ -57,6 +57,12 @@ function mpo_triangular_AF_ising_adapter()
 
 end
 
+function mpo_kink_processor(decay_rate::Float64)
+    
+
+
+end
+
 function mpo_square_ising(beta::Float64)
     # ising model on square lattice
     δ = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^2, ℂ^2*ℂ^2)

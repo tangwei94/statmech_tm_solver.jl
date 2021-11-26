@@ -3,6 +3,7 @@ using Zygote
 using LinearAlgebra
 using Optim
 using JLD2
+using Random
 
 using Revise
 using statmech_tm_solver
@@ -20,10 +21,10 @@ function g!(grad::Array{ComplexF64, 3}, psidata::Array{ComplexF64, 3})
     grad .= gradient(f, psidata)[1]
 end
 
-psidata = rand(ComplexF64, (2, 2, 2))
+psidata = rand(MersenneTwister(1), ComplexF64, (2, 2, 2))
 
-io = open("result_variational.txt", "w")
-close(io)
+#io = open("result_variational.txt", "w")
+#close(io)
 for chi in [4, 8, 16, 32] 
     io = open("result_variational.txt", "a+")
 
@@ -35,7 +36,8 @@ for chi in [4, 8, 16, 32]
     cost_func_final = nonherm_cost_func(T, psi_final)
     F_final = free_energy(T, psi_final)
     F_final_2 = free_energy(T2, act(T_adapter, psi_final))
-    println(io, chi, ' ', F_final, ' ', F_final_2, ' ', cost_func_final )
+    cost_func_final2 = nonherm_cost_func(T2, act(T_adapter, psi_final))
+    println(io, chi, ' ', F_final, ' ', F_final_2, ' ', cost_func_final, ' ', cost_func_final2 )
     quicksave("ckpt_variational_chi$(chi)", psi_final)    
 
     psi = act(T, psi_final)

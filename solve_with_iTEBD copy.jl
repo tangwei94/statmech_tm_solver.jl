@@ -7,21 +7,24 @@ using Optim
 
 # MPO 
 #T = mpo_triangular_AF_ising()
-T = mpo_triangular_AF_ising_alternative()
-T2 = mpo_triangular_AF_ising()
-T_adapter, _ = mpo_triangular_AF_ising_adapter()
-d = 4
+T2 = mpo_triangular_AF_ising_alternative()
+T = mpo_triangular_AF_ising()
+_, T_adapter = mpo_triangular_AF_ising_adapter()
+d = 2
 
 psi = TensorMap(rand, ComplexF64, ℂ^2*ℂ^d, ℂ^2)
 _, psi = left_canonical(psi)
 
-io = open("result_iTEBD.txt", "w")
+io = open("result_iTEBD1.txt", "w")
 close(io)
 for chi in [2; 4; 8; 16; 32]
     convergence_flag = -10
-    io = open("result_iTEBD.txt", "a+")
-    while convergence_flag <= 0
-        _, Tpsi = left_canonical(act(T, psi))
+    io = open("result_iTEBD1.txt", "a+")
+    ix = 0
+    while convergence_flag <= 0 && ix < 100
+        ix +=1
+
+        _, Tpsi = left_canonical(act(T,act(T, psi)))
         _, psi = iTEBD_truncate(Tpsi, chi)
         #psi = variational_truncate(Tpsi, chi)
 
@@ -40,7 +43,7 @@ for chi in [2; 4; 8; 16; 32]
         println(msg)
         println(io, msg)
 
-        quicksave("ckpt_iTEBD_chi$(chi)", psi)
+        quicksave("ckpt_iTEBD1_chi$(chi)", psi)
 
     end
     close(io)
