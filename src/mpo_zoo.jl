@@ -57,10 +57,18 @@ function mpo_triangular_AF_ising_adapter()
 
 end
 
+
 function mpo_kink_processor(decay_rate::Float64)
-    
+    gate = TensorMap(zeros, ℂ^2*ℂ^2, ℂ^2*ℂ^2)
+    gate[1,1,1,1] = gate[2,2,2,2] = exp(-decay_rate)
+    gate[1,2,1,2] = gate[2,1,2,1] = 1
 
-
+    u, s, v = tsvd(permute(gate, (1,3), (2,4)))
+    p = isometry(ℂ^4, ℂ^2)
+    lft = permute(u * sqrt(s) * p, (1,), (2,3)) 
+    rft = permute(p' * sqrt(s) * v, (1,2), (3,))
+    T = rft * lft
+    return T
 end
 
 function mpo_square_ising(beta::Float64)

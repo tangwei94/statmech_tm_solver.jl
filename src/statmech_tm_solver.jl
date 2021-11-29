@@ -45,6 +45,7 @@ export  toarray,
 export  mpo_triangular_AF_ising,
         mpo_triangular_AF_ising_alternative,
         mpo_triangular_AF_ising_adapter,
+        mpo_kink_processor,
         mpo_square_ising
 
 export  bimps, 
