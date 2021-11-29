@@ -65,15 +65,30 @@ function transf_mat_T(psi::cmps, phi::cmps)
     return lop_T
 end
 
-function leftorth(psi::cmps)
-    chi = get_chi(psi)
+"""
+    leftorth(A::cmps) -> AL, Tϵ
 
-    # calculate Rϵ
-    Rϵ = 0.5 * (psi.Q + psi.Q')
-    
+    QR decomposition of cMPS local tensor. 
 
+    To avoid confusion (as we have used Q, R to denote the matrices inside the cMPS local tensor), 
+    we use notations A = AL T, where A is the input cMPS local tensor, AL is the left-orthogonalized cMPS local tensor (AL^{\\dagger} AL = I), and T = I + ϵ Tϵ is the upper triangular matrix. 
+
+    Returns AL and Tϵ.
+"""
+function leftorth(A::cmps)
+    chi = get_chi(A)
+
+    # calculate Tϵ
+    Tϵ = A.Q + A.Q' + A.R' * A.R
+    Tϵ_arr = triu(Tϵ.data) - 0.5 * Diagonal(Tϵ.data)
+    Tϵ = TensorMap(Tϵ_arr, ℂ^chi, ℂ^chi)
+
+    # calculate QL, and RL
+    QL = A.Q - Tϵ
+    RL = A.R 
+
+    return cmps(QL, RL), Tϵ 
 end
-
 
 function left_canonical(psi::cmps)
     chi = get_chi(psi)
