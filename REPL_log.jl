@@ -8,16 +8,6 @@ using statmech_tm_solver
 using KrylovKit
 using LinearAlgebra
 
-A = zeros(ComplexF64, (2,2,2,2))
-A[1,1,1,1] = A[2,2,2,2] = 0.5
-A[1,2,1,2] = A[2,1,2,1] = 1
-
-reshape(permutedims(A, (1,3,2,4)), (4,4)) |> svd
-
-
-
-
-
 ####################################################################
 # MPO for the triangular AF Ising
 T = mpo_triangular_AF_ising()
@@ -26,34 +16,12 @@ T_vonb, T_tob = mpo_triangular_AF_ising_adapter()
 
 psi = quickload("ckpt_variational_chi$(chi)")
 _, psi = left_canonical(psi)
-_, s, _ = toarray(psi)[:, 1, :] ^ 10 |> svd; s
 
-####################################################################
-space(T_vonb)
-T_vonb_arr = reshape(T_vonb.data, (4,2,4,4))
-space(T_tob) 
-T_tob_arr = reshape(T_tob.data, (2,4,2,2))
+exp(-Inf)
+Tn = mpo_kink_processor(Inf)
+_, Tn_psi = left_canonical(act(Tn, psi))
 
-psi = quickload("ckpt_iTEBD_chi32")
-_, s, _ = toarray(psi)[:, 1, :] ^ 10 |> svd; s
-_, s, _ = (toarray(psi)[:, 3, :] * toarray(psi)[:, 2, :])^5 |> svd; s
-
-M1 = zeros(ComplexF64, (3, 3))
-M1[1,1] = 1;
-M1[2,2] = M1[3,2] = 0.5;
-M1[3,3] = 1;
-M1
-
-M2 = zeros(ComplexF64, (3, 3))
-M2[1,1] = 1;
-M2[2,2] = 0.5;
-M2[1,2] = M2[3,2] = 0.25;
-M2[3,3] = 0.75;
-M2[2,3] = 0.25;
-M2
-
-eigvals(M1)
-eigvals(M2)
+ovlp(psi, Tn_psi)
 
 ####################################################################
 
