@@ -17,7 +17,8 @@ _, psi = left_canonical(psi)
 
 io = open("result_iTEBD.txt", "w")
 close(io)
-for chi in [2; 4; 8; 16; 32]
+for chi in [2; 4; 8; 16; 32; 64]
+    global psi
     convergence_flag = -10
     io = open("result_iTEBD.txt", "a+")
     while convergence_flag <= 0
@@ -35,13 +36,11 @@ for chi in [2; 4; 8; 16; 32]
             convergence_flag += 1
         end
 
-        msg = "$chi $F_value $F_value2 $costfunc_value $fidelity_value $costfunc_value2"
+        msg = "$chi $F_value $costfunc_value $fidelity_value $F_value2 $costfunc_value2"
 
         println(msg)
         println(io, msg)
-
-        quicksave("ckpt_iTEBD_chi$(chi)", psi)
-
     end
     close(io)
+    quicksave("ckpt_iTEBD_chi$(chi)", psi)
 end
