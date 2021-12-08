@@ -4,3 +4,6 @@ struct cmpo
     R::TensorMap{ComplexSpace, 2, 1}
     P::TensorMap{ComplexSpace, 2, 2}
 end
+
+@inline get_phy(T::cmpo) = get_chi(T.R)
+@inline get_vir(T::cmpo) = get_d(T.R) + 1

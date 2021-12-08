@@ -40,7 +40,8 @@ export  toarray,
         get_d,
         arr_to_TensorMap,
         quicksave,
-        quickload
+        quickload,
+        logsumexp
 
 export  mpo_triangular_AF_ising,
         mpo_triangular_AF_ising_alternative,
@@ -52,10 +53,13 @@ export  bimps,
         A_canonical, 
         B_canonical
 
-export  cmps,
-        right_canonical
+export  cmpo,
+        get_phy,
+        get_vir
 
-export  cmpo
+export  cmps,
+        right_canonical,
+        log_ovlp
 
 export  cmpo_ising,
         energy_quantum_ising,
@@ -72,8 +76,8 @@ include("imps.jl")
 include("utils.jl")
 include("mpo_zoo.jl")
 include("bi_direction.jl")
-include("cmps.jl")
 include("cmpo.jl")
+include("cmps.jl")
 include("cmpo_zoo.jl")
 include("bi_direction_q.jl")
 include("attempts.jl")

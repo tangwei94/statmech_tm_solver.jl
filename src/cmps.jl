@@ -90,6 +90,12 @@ function leftorth(A::cmps)
     return cmps(QL, RL), Tϵ 
 end
 
+"""
+    left_canonical(psi::cmps)
+
+    Convert the input cmps into the left-canonical form. 
+    Return the gauge transformation matrix X and the left-canonicalized cmps. 
+"""
 function left_canonical(psi::cmps)
     chi = get_chi(psi)
 
@@ -112,6 +118,12 @@ function left_canonical(psi::cmps)
     return X, cmps(Q, R)
 end
 
+"""
+    right_canonical(psi::cmps)
+
+    Convert the input cmps into the right-canonical form. 
+    Return the gauge transformation matrix Y and the right-canonicalized cmps. 
+"""
 function right_canonical(psi::cmps)
     chi = get_chi(psi)
 
@@ -162,4 +174,58 @@ function expand(psi::cmps, chi::Integer, perturb::Float64=1e-3)
     R = arr_to_TensorMap(R_arr)
 
     return cmps(Q, R)
+end
+
+"""
+    act(op::cmpo, psi::cmps)
+
+    Act a cmpo to a cmps. 
+    The tensor structure of the new cmps will not be kept.
+"""
+function act(T::cmpo, psi::cmps)
+    chi_cmpo, chi_psi = get_phy(T), get_chi(psi)
+    chi_tot = chi_cmpo * chi_psi
+    t_fuse = isomorphism(ℂ^chi_tot, ℂ^chi_cmpo*ℂ^chi_psi)
+
+    @tensor Q[-1; -2] := t_fuse[-1, 1, 3] * T.Q[1, 2] * t_fuse'[2, 3, -2] +
+                         t_fuse[-1, 3, 1] * psi.Q[1, 2] * t_fuse'[3, 2, -2] +
+                         t_fuse[-1, 1, 2] * T.L'[1, 4, 3] * T.R[2, 3, 5] * t_fuse'[4, 5, -2]
+    @tensor R[-1, -2; -3] := t_fuse[-1, 1, 3] * T.R[1, -2, 2] * t_fuse'[2, 3, -3]
+
+    return cmps(Q, R)
+end
+
+"""
+    rrule(::typeof(act), T::cmpo, psi::cmps)
+
+    Reverse diff rule for `act(op::cmpo, psi::cmps)`
+"""
+function rrule(::typeof(act), T::cmpo, psi::cmps)
+    
+end
+
+""" 
+    log_ovlp(phi::cmps, psi::cmps, L::Real)
+
+    Caculate the log of overlap for two finite uniform cmps `phi` and `psi`. 
+    `L` is the length of the uniform cmps. 
+    """
+function log_ovlp(phi::cmps, psi::cmps, L::Real)
+    Id_phi = id(ℂ^get_chi(phi))
+    Id_psi = id(ℂ^get_chi(psi))
+    @tensor t_trans[-1, -2; -3, -4] := phi.Q'[-3, -1] * Id_psi[-2, -4] + 
+                                       Id_phi'[-3, -1] * psi.Q[-2, -4] + 
+                                       phi.R'[-3, -1, 1] * psi.R[-2, 1, -4]
+    w, _ = eig(t_trans)
+    w = diag(w.data)
+    return logsumexp(L*w)
+end
+
+"""
+    rrule(::typeof(log_ovlp), phi::cmps, psi::cmps, L::Real)
+
+    Reverse diff rule for `log_ovlp(phi::cmps, psi::cmps, L::Real)`
+"""
+function rrule(::typeof(log_ovlp), phi::cmps, psi::cmps, L::Real)
+
 end

@@ -57,3 +57,17 @@ function quickload(name::String)
     chi, d = psi_dict["chi"], psi_dict["d"]
     return TensorMap(psi_dict["data"], ℂ^chi*ℂ^d, ℂ^chi)
 end
+
+"""
+    logsumexp(w)
+
+Calculation of logsumexp.
+"""
+function logsumexp(w::Array{<:Number, 1})
+    u = maximum(norm.(w))
+    t = 0.0
+    for i = 1:length(w)
+        t += exp(w[i]-u)
+    end
+    u + log(t)
+end
