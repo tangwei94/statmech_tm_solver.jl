@@ -49,24 +49,3 @@ for chi in [2, 4, 8, 16]
 
     close(io)
 end
-## todo: z2 symmetry?
-#@tensor Tlinked[-1, -3, -5, -7, -9, -11, -13, -15, -17, -19; -2, -4, -6, -8, -10, -12, -14, -16, -18, -20] := 
-#    T[1, -1, -2, 2] * 
-#    T[2, -3, -4, 3] *
-#    T[3, -5, -6, 4] *
-#    T[4, -7, -8, 5] *
-#    T[5, -9, -10, 6] *
-#    T[6, -11, -12, 7] *
-#    T[7, -13, -14, 8] *
-#    T[8, -15, -16, 9] * 
-#    T[9, -17, -18, 10] * 
-#    T[10, -19, -20, 1]; 
-#
-#D, V = eig(Tlinked);
-#(D.data |> diag)
-#for ix in 1:10
-#    println(ix, ' ', log(abs(D[ix, ix])) / 10, ' ', reshape(toarray(V), (1024, 1024))[1, ix])
-#end
-#for ix in 1000:1024
-#    println(ix, ' ', log(abs(D[ix, ix])) / 10, ' ', reshape(toarray(V), (1024, 1024))[1, ix])
-#end
