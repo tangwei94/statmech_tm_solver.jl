@@ -7,7 +7,7 @@ matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 plt.rcParams['font.size'] = 15
 
-f = io.open("result_triangular_ising_fulldiag.txt", "r")
+f = io.open("result_triangular_ising_fulldiag_obc.txt", "r")
 data = np.loadtxt(f)
 f.close()
 
@@ -21,6 +21,8 @@ for ix, n in enumerate([5, 6, 7, 8, 9, 10, 11, 12]):
     w_reals = data[msk, 1]
     w_imags = data[msk, 2]
     w_max = max(w_reals)
+
+    print(n, np.log(w_max)/n)
     
     axes[ix].set(xlabel='real part', ylabel='imag part', xlim=(-w_max, w_max), ylim=(-w_max, w_max))
     axes[ix].set_aspect('equal')
@@ -32,6 +34,6 @@ for ix, n in enumerate([5, 6, 7, 8, 9, 10, 11, 12]):
     axes[ix].text(0.1, 0.9, "L={:d}".format(n), horizontalalignment='center', transform=axes[ix].transAxes, fontsize='small')
 
 fig.tight_layout()
-plt.savefig("result_triangular_ising_fulldiag.pdf", bbox_inches='tight')
+plt.savefig("result_triangular_ising_fulldiag_obc.pdf", bbox_inches='tight')
 plt.close(fig)
 

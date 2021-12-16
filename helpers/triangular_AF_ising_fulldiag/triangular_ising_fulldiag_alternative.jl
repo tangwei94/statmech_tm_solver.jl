@@ -1,11 +1,18 @@
 using TensorKit 
-using statmech_tm_solver
 using TensorOperations
 using LinearAlgebra
+using statmech_tm_solver
 
-io = open("result_triangular_ising_fulldiag.txt", "w")
+io = open("result_triangular_ising_fulldiag_alternative.txt", "w")
 close(io)
-T = mpo_triangular_AF_ising()
+T0 = mpo_triangular_AF_ising_alternative()
+T1, T2 = mpo_triangular_AF_ising_adapter()
+t_fuse = isomorphism(ℂ^32, ℂ^4*ℂ^4*ℂ^2)
+
+@tensor T[-1, -2; -3, -4] := t_fuse[-1, 3, 4, 5] * T1[3, -2, 1, 6] * T0[4, 1, 2, 7] * T2[5, 2, -3, 8] * t_fuse'[6, 7, 8, -4]
+
+U, S, V, ϵ = tsvd(permute(T, (1, 2, 3), (4,)), trunc=truncerr(1e-10))
+T = permute(S*V*permute(U, (1, ), (2, 3, 4)), (1, 2), (3, 4))
 
 T5 = ncon([T, T, T, T, T], [[1, -1, -2, 2], [2, -3, -4, 3], [3, -5, -6, 4], [4, -7, -8, 5], [5, -9, -10, 1]])
 T5 = permute(T5, (1, 3, 5, 7, 9), (2, 4, 6, 8, 10))
@@ -37,27 +44,10 @@ for (n, Tn) in zip([5, 6, 7, 8, 9, 10, 11, 12], [T5, T6, T7, T8, T9, T10, T11, T
     w_reals = real.(w)
     w_imags = imag.(w)
 
-    io = open("result_triangular_ising_fulldiag.txt", "a+")
+    io = open("result_triangular_ising_fulldiag_alternative.txt", "a+")
     for (w_real, w_imag) in zip(w_reals, w_imags)
         println(io, "$(n)   $(w_real)   $(w_imag) ")
     end
     close(io)
 end
-
-w, v = eig(T12);
-space(v)
-v0 = v.data[:, 4096]
-
-w.data[4096, 4096]
-λs=diag(w.data)
-
-findmax(imag.(λs))
-
-v11 = v.data[:, 11]
-
-findmax(norm.(v0))
-
-findall(>(0.03), norm.(v11))
-
-v11[220]
 
