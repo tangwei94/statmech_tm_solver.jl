@@ -1,5 +1,3 @@
-using Revise
-using statmech_tm_solver
 using Test
 using TestExtras
 
@@ -10,6 +8,10 @@ using Zygote
 using LinearAlgebra
 using KrylovKit
 using TensorOperations
+using TensorKitAD
+
+using Revise
+using statmech_tm_solver
 
 include("test_imps.jl")
 include("test_utils.jl")

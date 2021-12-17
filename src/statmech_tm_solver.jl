@@ -12,6 +12,7 @@ using TensorKit
 using TensorOperations
 using JLD2
 
+using TensorKitAD
 using ChainRules
 using ChainRulesCore
 import ChainRulesCore: rrule, frule

@@ -31,8 +31,9 @@ end
     
     grad_von_OMEinsum = gradient(f_with_OMEinsum, psi_arr)[1]
     grad = reshape(gradient(f, psi)[1].data, (5, 2, 5))
-    @test grad_von_OMEinsum ≈ conj.(grad)
+    @test grad_von_OMEinsum ≈ grad
 end
+
 
 @timedtestset "test transf_mat constructions ($ix)" for ix in 1:10
     psi = TensorMap(rand, ComplexF64, ℂ^5*ℂ^2, ℂ^5)

@@ -16,7 +16,7 @@ function rrule(::typeof(act), T::TensorMap{ComplexSpace, 2, 2}, psi::TensorMap{C
 
     fwd = Tpsi
     function act_pushback(f̄wd)
-        @tensor psi_pushback[-1, -2; -3] := f̄wd[1,4,2] * fuse_tensor[1,3,-1] * fuse_tensor'[5,-3,2] * T[3,4,-2,5]
+        @tensor psi_pushback[-1, -2; -3] := f̄wd[1,4,2] * conj(fuse_tensor[1,3,-1]) * conj(fuse_tensor'[5,-3,2]) * conj(T[3,4,-2,5])
         return NoTangent(), NoTangent(), psi_pushback
     end
     return fwd, act_pushback
@@ -55,8 +55,8 @@ function rrule(::typeof(ovlp), psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMa
     vr = vr / dot(vl, vr)
 
     function ovlp_pushback(f̄wd)
-        @tensor psi_pushback[-2, -3; -1] := conj(vl'[-2, 1]) * conj(phi[1, -3, 2]) * conj(vr[2, -1]) * conj(f̄wd)
-        @tensor phi_pushback[-1, -2; -3] := vl'[1, -1] * psi'[2, 1, -2] * vr[-3, 2] * f̄wd 
+        @tensor psi_pushback[-2, -3; -1] := vl'[-2, 1] * phi[1, -3, 2] * vr[2, -1] * conj(f̄wd)
+        @tensor phi_pushback[-1, -2; -3] := conj(vl'[1, -1]) * conj(psi'[2, 1, -2]) * conj(vr[-3, 2]) * f̄wd 
         return NoTangent(), psi_pushback, phi_pushback
     end
     return fwd, ovlp_pushback

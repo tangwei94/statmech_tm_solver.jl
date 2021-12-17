@@ -1,9 +1,9 @@
-function rrule(::typeof(dot), t1::TensorMap{ComplexSpace}, t2::AbstractTensorMap{ComplexSpace})
+function rrule(::typeof(dot), t1::AbstractTensorMap{ComplexSpace}, t2::AbstractTensorMap{ComplexSpace})
     fwd = dot(t1, t2)
 
     function dot_pushback(f̄wd)
-        @tensor t̄1[-1, -2; -3] := conj(t2[-1, -2, -3])*conj(f̄wd)
-        @tensor t̄2[-1, -2; -3] := conj(t1[-1, -2, -3])*f̄wd
+        t̄1 = f̄wd' * t2
+        t̄2 = f̄wd * t1 
         return NoTangent(), t̄1, t̄2
     end
     return fwd, dot_pushback
@@ -26,7 +26,7 @@ function rrule(::typeof(arr_to_TensorMap), arr::Array{ComplexF64, 3})
     chi, d, _ = size(arr)
     fwd = TensorMap(arr, ℂ^chi*ℂ^d, ℂ^chi)
     function arr_to_TensorMap_pushback(f̄wd)
-        return NoTangent(), conj.(reshape(f̄wd.data, (chi, d, chi)))
+        return NoTangent(), reshape(f̄wd.data, (chi, d, chi))
     end
     return fwd, arr_to_TensorMap_pushback
 end

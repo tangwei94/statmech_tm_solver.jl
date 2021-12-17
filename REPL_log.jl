@@ -5,6 +5,7 @@ using TensorKit
 using TensorOperations
 using KrylovKit
 using LinearAlgebra
+using Zygote
 using Revise
 using statmech_tm_solver
 

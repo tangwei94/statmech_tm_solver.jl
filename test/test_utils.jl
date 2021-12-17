@@ -5,5 +5,5 @@
     tmp1 = gradient(arr->norm(arr)^2, psi_arr)[1]
     tmp2 = gradient(psi->real(dot(psi, psi)), psi)[1]
     tmp2 = reshape(tmp2.data, (5,2,5)) 
-    @test tmp1 ≈ conj.(tmp2)
+    @test tmp1 ≈ tmp2
 end
