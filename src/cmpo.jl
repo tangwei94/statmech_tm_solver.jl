@@ -7,3 +7,6 @@ end
 
 @inline get_phy(T::cmpo) = get_chi(T.R)
 @inline get_vir(T::cmpo) = get_d(T.R) + 1
+
+@non_differentiable get_phy(T::cmpo)
+@non_differentiable get_vir(T::cmpo)

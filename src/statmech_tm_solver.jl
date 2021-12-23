@@ -40,6 +40,7 @@ export  toarray,
         get_chi,
         get_d,
         arr_to_TensorMap,
+        convert_to_tensormap,
         quicksave,
         quickload,
         logsumexp
@@ -59,7 +60,9 @@ export  cmpo,
         get_vir
 
 export  cmps,
+        convert_to_cmps,
         right_canonical,
+        K_mat,
         log_ovlp
 
 export  cmpo_ising,
@@ -73,6 +76,8 @@ export  qbimps
 export  pseudo_ovlp,
         variational_truncate
 
+export convert_to_array
+
 include("imps.jl")
 include("utils.jl")
 include("mpo_zoo.jl")
@@ -82,5 +87,6 @@ include("cmps.jl")
 include("cmpo_zoo.jl")
 include("bi_direction_q.jl")
 include("attempts.jl")
+include("TensorKitAD_supp.jl")
 
 end

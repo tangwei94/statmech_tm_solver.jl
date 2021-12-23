@@ -18,6 +18,9 @@ end
 @inline get_chi(psi::TensorMap{ComplexSpace, 2, 1}) = dim(domain(psi))
 @inline get_d(psi::TensorMap{ComplexSpace, 2, 1}) = dim(codomain(psi)) ÷ dim(domain(psi))
 
+@non_differentiable get_chi(psi::TensorMap{ComplexSpace, 2, 1})
+@non_differentiable get_d(psi::TensorMap{ComplexSpace, 2, 1})
+
 function arr_to_TensorMap(arr::Array{ComplexF64, 3})
     chi, d, _ = size(arr)
     return TensorMap(arr, ℂ^chi*ℂ^d, ℂ^chi)
@@ -29,6 +32,35 @@ function rrule(::typeof(arr_to_TensorMap), arr::Array{ComplexF64, 3})
         return NoTangent(), reshape(f̄wd.data, (chi, d, chi))
     end
     return fwd, arr_to_TensorMap_pushback
+end
+
+*(x::ComplexSpace) = x
+
+"""
+    convert_to_tensormap(arr::Array{<:Complex}, d_dom::Integer) -> TensorMap
+
+    Given the dimension of the domain, convert an array to the tensormap. 
+"""
+function convert_to_tensormap(arr::Array{<:Complex}, d_dom::Integer)
+    size_arr = size(arr)
+    d_arr = length(size_arr)
+    dom = ifelse(d_dom > 0, prod(map(x->ℂ^x, size_arr[1:d_dom])), ProductSpace{ComplexSpace, 0})
+    codom = ifelse(d_arr > d_dom, prod(map(x->ℂ^x, size_arr[d_dom+1:end])), ProductSpace{ComplexSpace, 0})
+    return TensorMap(arr, dom, codom)
+end
+
+"""
+    rrule(typeof(convert_to_tensormap), arr::Array{<:Complex}, d_dom::Integer)
+
+    The rrule for function `convert_to_tensormap`.
+"""
+function rrule(::typeof(convert_to_tensormap), arr::Array{<:Complex}, d_dom::Integer)
+    fwd = convert_to_tensormap(arr, d_dom)
+
+    function convert_to_tensormap_pushback(f̄wd)
+        return NoTangent(), convert(Array, f̄wd), NoTangent()
+    end
+    return fwd, convert_to_tensormap_pushback
 end
 
 """

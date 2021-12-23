@@ -3,6 +3,19 @@ struct cmps
     R::TensorMap{ComplexSpace, 2, 1}
 end
 
+function rrule(::typeof(cmps), Q::TensorMap{ComplexSpace, 1, 1}, R::TensorMap{ComplexSpace, 2, 1})
+    function cmps_pushback(f̄wd)
+        return NoTangent(), f̄wd.Q, f̄wd.R
+    end
+    return cmps(Q, R), cmps_pushback
+end
+
+"""
+    cmps(f, chi::Integer, d::Integer) -> cmps
+
+    generate a cmps with vitual dim `chi` and physical dim `d` using function `f` to generate the parameters.
+    Example: `cmps(rand, 2, 4)` 
+"""
 function cmps(f, chi::Integer, d::Integer)
     Q = TensorMap(f, ComplexF64, ℂ^chi, ℂ^chi)
     R = TensorMap(f, ComplexF64, ℂ^chi*ℂ^d, ℂ^chi)
@@ -44,6 +57,20 @@ end
 
 @inline get_chi(psi::cmps) = get_chi(psi.R)
 @inline get_d(psi::cmps) = get_d(psi.R)
+
+
+"""
+    convert_to_cmps(arr::Array{<:Complex, 3})
+
+    Convert a chi*(d+1)*chi array to a cMPS. 
+    `chi` is the virtual bond dimension, `d+1` is the physical bond dimension. 
+"""
+function convert_to_cmps(arr::Array{<:Complex, 3})
+    Q = convert_to_tensormap(arr[:, 1, :], 1)
+    R = convert_to_tensormap(arr[:, 2:end, :], 2)
+    return cmps(Q, R)
+end
+
 
 function transf_mat(psi::cmps, phi::cmps)
     function lop(v::TensorMap{ComplexSpace, 1, 1})
@@ -177,7 +204,7 @@ function expand(psi::cmps, chi::Integer, perturb::Float64=1e-3)
 end
 
 """
-    act(op::cmpo, psi::cmps)
+    act(op::cmpo, psi::cmps) -> cmps
 
     Act a cmpo to a cmps. 
     The tensor structure of the new cmps will not be kept.
@@ -187,9 +214,11 @@ function act(T::cmpo, psi::cmps)
     chi_tot = chi_cmpo * chi_psi
     t_fuse = isomorphism(ℂ^chi_tot, ℂ^chi_cmpo*ℂ^chi_psi)
 
+    T = Zygote.dropgrad(T)
+
     @tensor Q[-1; -2] := t_fuse[-1, 1, 3] * T.Q[1, 2] * t_fuse'[2, 3, -2] +
                          t_fuse[-1, 3, 1] * psi.Q[1, 2] * t_fuse'[3, 2, -2] +
-                         t_fuse[-1, 1, 2] * T.L'[1, 4, 3] * T.R[2, 3, 5] * t_fuse'[4, 5, -2]
+                         t_fuse[-1, 1, 2] * T.L'[1, 4, 3] * psi.R[2, 3, 5] * t_fuse'[4, 5, -2]
     @tensor R[-1, -2; -3] := t_fuse[-1, 1, 3] * T.R[1, -2, 2] * t_fuse'[2, 3, -3]
 
     return cmps(Q, R)
@@ -198,34 +227,81 @@ end
 """
     rrule(::typeof(act), T::cmpo, psi::cmps)
 
-    Reverse diff rule for `act(op::cmpo, psi::cmps)`
+    Reverse diff rule for `act(op::cmpo, psi::cmps)`. 
+    We only calculate the adjoint of `psi`. 
 """
 function rrule(::typeof(act), T::cmpo, psi::cmps)
-    
+    chi_cmpo, chi_psi = get_phy(T), get_chi(psi)
+    chi_tot = chi_cmpo * chi_psi
+    t_fuse = isomorphism(ℂ^chi_tot, ℂ^chi_cmpo*ℂ^chi_psi)
+    fwd = act(T, psi)
+
+    function act_pushback(f̄wd)
+        @tensor Q̄_psi[-1; -2] := f̄wd.Q[1, 2] * t_fuse'[3, -1, 1] * t_fuse[2, 3, -2]
+        @tensor R̄_psi[-1, -2; -3] := f̄wd.Q[1, 2] * t_fuse'[3, -1, 1] * t_fuse[2, 4, -3] * T.L[4, -2, 3] 
+        p̄si = cmps(Q̄_psi, R̄_psi)
+        return NoTangent(), NoTangent(), p̄si 
+    end
+    return fwd, act_pushback
+end
+
+"""
+    K_mat(phi::cmps, psi::cmps) -> Kmat::TensorMap{ComplexSpace, 2, 2}
+
+    calculate the K_mat from two cmpses `phi` and `psi`.
+"""
+function K_mat(phi::cmps, psi::cmps)
+    Id_phi = id(ℂ^get_chi(phi))
+    Id_psi = id(ℂ^get_chi(psi))
+    @tensor Kmat[-1, -2; -3, -4] := phi.Q'[-3, -1] * Id_psi[-2, -4] + 
+                                    Id_phi'[-3, -1] * psi.Q[-2, -4] + 
+                                    phi.R'[-3, -1, 1] * psi.R[-2, 1, -4]
+    return Kmat
+end
+
+"""
+    rrule(::typeof(K_mat), phi::cmps, psi::cmps) -> fwd::TensorMap{ComplexSpace, 2, 2}, K_mat_pushback::Function
+
+    The reverse rule for function K_mat.  
+"""
+function rrule(::typeof(K_mat), phi::cmps, psi::cmps)
+    Id_phi = id(ℂ^get_chi(phi))
+    Id_psi = id(ℂ^get_chi(psi))
+    fwd = K_mat(phi, psi) 
+
+    function K_mat_pushback(f̄wd)
+        f̄wd = permute(f̄wd, (3, 2), (1, 4))
+        @tensor Q̄_phi[-1; -2] := conj(f̄wd[-2, 1, -1, 1])
+        @tensor Q̄_psi[-1; -2] := f̄wd[1, -1, 1, -2]
+        @tensor R̄_phi[-1, -2; -3] := conj(f̄wd[-3, 1, -1, 2]) * conj(psi.R'[2, 1, -2])
+        @tensor R̄_psi[-1, -2; -3] := f̄wd[2, -1, 1, -3] * phi.R[1, -2, 2]
+        p̄hi = cmps(Q̄_phi, R̄_phi)
+        p̄si = cmps(Q̄_psi, R̄_psi)
+        return NoTangent(), p̄hi, p̄si
+    end
+    return fwd, K_mat_pushback
 end
 
 """ 
-    log_ovlp(phi::cmps, psi::cmps, L::Real)
+    log_ovlp(phi::cmps, psi::cmps, L::Real) -> ComplexF64
 
     Caculate the log of overlap for two finite uniform cmps `phi` and `psi`. 
     `L` is the length of the uniform cmps. 
-    """
-function log_ovlp(phi::cmps, psi::cmps, L::Real)
-    Id_phi = id(ℂ^get_chi(phi))
-    Id_psi = id(ℂ^get_chi(psi))
-    @tensor t_trans[-1, -2; -3, -4] := phi.Q'[-3, -1] * Id_psi[-2, -4] + 
-                                       Id_phi'[-3, -1] * psi.Q[-2, -4] + 
-                                       phi.R'[-3, -1, 1] * psi.R[-2, 1, -4]
-    w, _ = eig(t_trans)
-    w = diag(w.data)
+"""
+function log_ovlp(phi::cmps, psi::cmps, L::Number)
+    t_trans = convert_to_array(K_mat(phi, psi))
+    tot_dim = get_chi(phi) * get_chi(psi)
+    t_trans = reshape(t_trans, (tot_dim, tot_dim))
+    w = eigvals(t_trans)
     return logsumexp(L*w)
 end
 
-"""
-    rrule(::typeof(log_ovlp), phi::cmps, psi::cmps, L::Real)
+#"""
+    #rrule(::typeof(log_ovlp), phi::cmps, psi::cmps, L::Real)
 
-    Reverse diff rule for `log_ovlp(phi::cmps, psi::cmps, L::Real)`
-"""
-function rrule(::typeof(log_ovlp), phi::cmps, psi::cmps, L::Real)
+    #Reverse diff rule for `log_ovlp(phi::cmps, psi::cmps, L::Real)`
+#"""
 
-end
+#function rrule(::typeof(log_ovlp), phi::cmps, psi::cmps, L::Real)
+
+#end
