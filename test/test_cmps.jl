@@ -95,8 +95,8 @@ end
 
 # test rrule for log_ovlp
 @timedtestset "rrule for cmps log_ovlp" for ix in 1:10
-    ψ_arr = rand(ComplexF64, (6, 4, 6))
-    ϕ_arr = rand(ComplexF64, (6, 4, 6))
+    ψ_arr = rand(ComplexF64, (3, 4, 3))
+    ϕ_arr = rand(ComplexF64, (4, 4, 4))
 
     function f1(arr::Array{<:Complex})
         ψ = convert_to_cmps(arr)

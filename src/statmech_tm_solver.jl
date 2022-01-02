@@ -63,7 +63,9 @@ export  cmps,
         convert_to_cmps,
         right_canonical,
         K_mat,
-        log_ovlp
+        log_ovlp,
+        gram_matrix,
+        tangent_proj
 
 export  cmpo_ising,
         energy_quantum_ising,

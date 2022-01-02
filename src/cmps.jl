@@ -71,7 +71,35 @@ function convert_to_cmps(arr::Array{<:Complex, 3})
     return cmps(Q, R)
 end
 
+"""
+    convert_to_cmps(arr::TensorMap{ComplexSpace, 2, 1})
+    
+    Convert a C^chi*C^(d+1) <- C^chi TensorMap to a cMPS. 
+"""
+function convert_to_cmps(arr::TensorMap{ComplexSpace, 2, 1})
+    return convert_to_cmps(convert_to_array(arr))
+end
 
+"""
+    convert_to_array(psi::cmps)
+
+    Convert a cmps to an array.
+"""
+function convert_to_array(psi::cmps)
+    chi = get_chi(psi)
+    Q_arr, R_arr = convert_to_array(psi.Q), convert_to_array(psi.R)
+    Q_arr = reshape(Q_arr, (chi, 1, chi))
+    arr = cat(Q_arr, R_arr, dims=2)
+    return arr
+end
+
+
+
+"""
+    transf_mat(psi::cmps, phi::cmps) -> Function
+
+    Obtain the transfer matrix of <psi|phi> as a linear operator.
+"""
 function transf_mat(psi::cmps, phi::cmps)
     function lop(v::TensorMap{ComplexSpace, 1, 1})
         @tensor Tv[-1; -2] := v[-1, 1] * psi.Q'[1, -2] + 
@@ -82,6 +110,11 @@ function transf_mat(psi::cmps, phi::cmps)
     return lop
 end
 
+"""
+    transf_mat_T(psi::cmps, phi::cmps) -> Function
+
+    Obtain the Hermtian conjugate of the transfer matrix of <psi|phi> as a linear operator.
+"""
 function transf_mat_T(psi::cmps, phi::cmps)
     function lop_T(v::TensorMap{ComplexSpace, 1, 1})
         @tensor Tv[-1; -2] := v[-1, 1] * psi.Q[1, -2] + 
@@ -207,14 +240,11 @@ end
     act(op::cmpo, psi::cmps) -> cmps
 
     Act a cmpo to a cmps. 
-    The tensor structure of the new cmps will not be kept.
 """
 function act(T::cmpo, psi::cmps)
     chi_cmpo, chi_psi = get_phy(T), get_chi(psi)
     chi_tot = chi_cmpo * chi_psi
     t_fuse = isomorphism(ℂ^chi_tot, ℂ^chi_cmpo*ℂ^chi_psi)
-
-    T = Zygote.dropgrad(T)
 
     @tensor Q[-1; -2] := t_fuse[-1, 1, 3] * T.Q[1, 2] * t_fuse'[2, 3, -2] +
                          t_fuse[-1, 3, 1] * psi.Q[1, 2] * t_fuse'[3, 2, -2] +
@@ -248,7 +278,14 @@ end
 """
     K_mat(phi::cmps, psi::cmps) -> Kmat::TensorMap{ComplexSpace, 2, 2}
 
-    calculate the K_mat from two cmpses `phi` and `psi`.
+    calculate the K_mat from two cmpses `phi` and `psi`. order of indices:
+
+        -1 -->--  phi' -->-- -3
+                   |
+                   ^
+                   |
+        -2 --<--  psi  --<-- -4
+
 """
 function K_mat(phi::cmps, psi::cmps)
     Id_phi = id(ℂ^get_chi(phi))
@@ -288,7 +325,7 @@ end
     Caculate the log of overlap for two finite uniform cmps `phi` and `psi`. 
     `L` is the length of the uniform cmps. 
 """
-function log_ovlp(phi::cmps, psi::cmps, L::Number)
+function log_ovlp(phi::cmps, psi::cmps, L::Real)
     t_trans = convert_to_array(K_mat(phi, psi))
     tot_dim = get_chi(phi) * get_chi(psi)
     t_trans = reshape(t_trans, (tot_dim, tot_dim))
@@ -296,12 +333,89 @@ function log_ovlp(phi::cmps, psi::cmps, L::Number)
     return logsumexp(L*w)
 end
 
-#"""
-    #rrule(::typeof(log_ovlp), phi::cmps, psi::cmps, L::Real)
+function C_matrix(D::TensorMap{ComplexSpace, 1, 1}, L::Real)
+    Cmat = similar(D)
+    w_vec = diag(D.data)
+    N = length(w_vec)
+    for ix in 1:N
+        for iy in 1:N
+            if w_vec[ix] ≈ w_vec[iy]
+                Cmat[ix, iy] = exp(w_vec[ix])
+            else
+                Cmat[ix, iy] = (exp(w_vec[ix] * L) - exp(w_vec[iy] * L)) / (w_vec[ix] - w_vec[iy])
+            end
+        end
+    end
+    return Cmat
+end
 
-    #Reverse diff rule for `log_ovlp(phi::cmps, psi::cmps, L::Real)`
-#"""
+function delta_tensor(chi2::Integer)
+    δ = TensorMap(zeros, ComplexF64, ℂ^chi2*ℂ^chi2, ℂ^chi2)
+    for ix in 1:chi2
+        δ[ix, ix, ix] = 1
+    end
+    return δ
+end
 
-#function rrule(::typeof(log_ovlp), phi::cmps, psi::cmps, L::Real)
+function company_tensor(psi::cmps)
+    A = convert_to_array(psi)
+    chi = get_chi(psi)
+    A[:, 1, :] = Matrix{ComplexF64}(I, chi, chi)
+    return convert_to_tensormap(A, 2)
+end
 
-#end
+"""
+    gram_matrix(psi::cmps, L::Real)
+
+    calculate the gram matrix. 
+"""
+function gram_matrix(psi::cmps, L::Real)
+    chi = get_chi(psi)
+
+    K = K_mat(psi, psi)
+    K = permute(K, (2, 1), (4, 3))
+    D, VR = eig(K)
+    VL = inv(VR)' # left eigenvalues 
+   
+    VR = permute(VR, (1,), (3, 2))
+    VL = permute(VL, (1,), (3, 2))
+
+    δ = delta_tensor(chi^2)
+    C = C_matrix(D, L)
+    A = company_tensor(psi)
+    Iph = id(ℂ^(get_d(psi)+1))
+    Iph[1,1] = 0
+    expD = exp(D*L)
+
+    @tensor gram[-1, -2, -3; -4, -5, -6] := 
+        δ[3, 2, 1] * VL'[1, 7, -5] * A'[8, 7, -6] * VR[-4, 4, 8] * VR[9, 2, -3] * A[10, -2, 9] * VL'[5, -1, 10] * δ'[4, 5, 6] * C[6, 3] + 
+        VL'[2, -1, -5] * Iph[-2, -6] * VR[-4, 1, -3] * expD[1, 2] 
+    return gram
+end
+
+"""
+    tangent_proj(phi::cmps, psi::cmps, L::Real)
+
+    project cmps `phi` into the tangent space of cmps `psi`. `L` is the length of the cmps. 
+"""
+function tangent_proj(phi::cmps, psi::cmps, L::Real, tol::Real)
+
+    gram_psi = gram_matrix(psi, L)
+    gram_psi_inv = pinv(gram_psi; rtol=tol)
+    gram_psi_inv = permute(gram_psi_inv, (6,2,3), (4,5,1))
+
+    K = transf_mat(psi, phi)
+    KT = transf_mat_T(psi, phi)
+    V0 = TensorMap(rand, ComplexF64, ℂ^get_chi(phi), ℂ^get_chi(psi))
+
+    _, VR = eigsolve(K, V0, 1, :LR)
+    VR = VR[1]
+    _, VL = eigsolve(KT, V0, 1, :LR)
+    VL = VL[1]
+
+    phi_tMap = company_tensor(phi)
+
+    @tensor B_proj[-1, -2; -3] := phi_tMap[1, 5, 2] * VL'[3, 1] * VR[2, 4] * gram_psi_inv[4, -1, -2, 3, 5, -3]
+
+    return B_proj
+end
