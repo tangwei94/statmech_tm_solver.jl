@@ -9,7 +9,57 @@ using KrylovKit
 using LinearAlgebra
 using Revise
 using statmech_tm_solver
-using Optim
+
+O = mpo_triangular_AF_ising()
+A = quickload("ckpt_variational_chi16")
+
+_, AL = left_canonical_QR(A)
+_, AR = right_canonical_QR(A)
+
+map_AC, map_C = tangent_map_tn(O, AL, AR)
+
+
+A = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
+_, AL = left_canonical_QR(A)
+_, AR = right_canonical_QR(A)
+
+#map_AC, map_C = tangent_map_tn(O, AL, AR)
+#
+#W, _ = eig(map_C)
+#W = diag(W.data)
+#
+#using Plots
+#plot(real.(W), imag.(W), seriestype=:scatter )
+
+    AC = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
+    C = TensorMap(rand, ComplexF64, ℂ^16, ℂ^16)
+
+
+    fmap_AC, fmap_C = tangent_map(O, AL, AR)
+
+    shifted_fmap_AC(AC::TensorMap{ComplexSpace, 2, 1}) = fmap_AC(AC) + AC
+    shifted_fmap_C(C::TensorMap{ComplexSpace, 1, 1}) = fmap_C(C) + C
+
+    #AC = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
+    #C = TensorMap(rand, ComplexF64, ℂ^16, ℂ^16)
+    #_, AC = eigsolve(fmap_AC, AC, 1, :LR)
+    #_, C = eigsolve(fmap_C, C, 1, :LR)
+    #AC = AC[1]
+    #C = C[1]
+
+    AC = shifted_fmap_AC(AC)
+    C = shifted_fmap_C(C)
+
+    AL, AR = calculate_ALR(AC, C)
+
+    map_AC, map_C = tangent_map_tn(O, AL, AR)
+    W, _ = eig(map_C)
+    W = diag(W.data)
+
+    using Plots
+    plot(real.(W), imag.(W), seriestype=:scatter )
+    @show nonherm_cost_func(O, AL)
+
 
 phi = cmps(rand, 6, 4)
 psi = cmps(rand, 2, 4)
@@ -100,27 +150,3 @@ chi = get_chi(psi)
 Q_arr, R_arr = convert_to_array(psi.Q), convert_to_array(psi.R)
 Q_arr = reshape(Q_arr, (chi, 1, chi))
 arr = cat(Q_arr, R_arr, dims=2)
-
-
-
-A = TensorMap(rand, ComplexF64, ℂ^8*ℂ^2, ℂ^8) 
-Iph = id(ℂ^2)
-
-@tensor G2[-1, -2, -3; -4, -5, -6] := A[-4, 1, -5] * A'[-1, -3, 1] * Iph[-2, -6] +
-                                     A[-4, -2, -5] * A'[-1, -3, -6];
-
-U, S, V = tsvd(G2);
-@show diag(S.data)
-findall(x-> x> 1e-12, diag(S.data))
-
-@tensor G3[-1, -2, -3; -4, -5, -6] := 
-    A[-4, 1, 2] * A'[3, -3, 1] * A[2, 4, -5] * A'[-1, 3, 4] * Iph[-2, -6] +
-    A[2, 1, -5] * A'[3, -3, 1] * A'[-1, 3, -6] * A[-4, -2, 2] +
-    A'[3, -3, -6] * A[-4, 1, 2] * A'[-1, 3, 1] * A[2, -2, -5] ;
-
-U, S, V = tsvd(G3);
-S /= S[1];
-@show diag(S.data)
-findall(x-> x> 1e-12, diag(S.data))
-
-

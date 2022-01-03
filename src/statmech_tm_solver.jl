@@ -19,6 +19,7 @@ import ChainRulesCore: rrule, frule
 import Base: +, -, *, iterate, length, getindex, similar
 import TensorKit: leftorth, rightorth
 
+# imps.jl
 export  act,
         transf_mat,
         transf_mat_T,
@@ -34,8 +35,12 @@ export  act,
         right_canonical_QR,
         entanglement_spectrum,
         entanglement_entropy, 
-        expand
+        expand,
+        tangent_map_tn, 
+        tangent_map, 
+        calculate_ALR
 
+# utils.jl
 export  toarray,
         get_chi,
         get_d,

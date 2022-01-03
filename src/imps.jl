@@ -38,6 +38,22 @@ function transf_mat_T(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{Complex
     return lop_T
 end
 
+function transf_mat(A::TensorMap{ComplexSpace, 2, 1}, O::TensorMap{ComplexSpace, 2, 2}, B::TensorMap{ComplexSpace, 2, 1})
+    function lop(v::TensorMap{ComplexSpace, 2, 1})
+        @tensor v1[-1, -2; -3] := A[-1, 5, 1] * O[-2, 4, 5, 3] * B'[2, -3, 4] * v[1, 3, 2]
+        return v1
+    end
+    return lop
+end
+
+function transf_mat_T(A::TensorMap{ComplexSpace, 2, 1}, O::TensorMap{ComplexSpace, 2, 2}, B::TensorMap{ComplexSpace, 2, 1})
+    function lop_T(v::TensorMap{ComplexSpace, 2, 1})
+        @tensor v1[-1, -2; -3] := A'[-1, 1, 5] * O'[5, -2, 3, 4] * B[2, 4, -3] * v[1, 3, 2]
+        return v1
+    end
+    return lop_T
+end
+
 function ovlp(psi::TensorMap{ComplexSpace, 2, 1}, phi::TensorMap{ComplexSpace, 2, 1})
     chi_psi, chi_phi = get_chi(psi), get_chi(phi)
     v0 = TensorMap(rand, ComplexF64, ℂ^chi_phi, ℂ^chi_psi)
@@ -244,3 +260,56 @@ function expand(psi::TensorMap{ComplexSpace, 2, 1}, chi::Integer, perturb::Float
     return phi
 end
 
+function tangent_map_tn(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{ComplexSpace, 2, 1})
+    lop_R = transf_mat(AR, O, AR)
+    lop_L = transf_mat_T(AL, O, AL)
+    chi_mps = get_chi(AL)
+    chi_mpo = dims(domain(O))[2]
+
+    ER = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
+    EL = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
+    _, ER = eigsolve(lop_R, ER, 1)
+    _, EL = eigsolve(lop_L, EL, 1)
+    EL, ER = EL[1], ER[1]
+
+    @tensor map_AC[-1, -2, -3; -4, -5, -6] := EL'[-1, -4, 1] * O[1, -2, -5, 2] * ER[-6, 2, -3]
+    @tensor map_C[-1, -2; -3, -4] := EL'[-1, -3, 1] * ER[-4, 1, -2]
+
+    return map_AC, map_C
+end
+
+function tangent_map(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{ComplexSpace, 2, 1})
+    lop_R = transf_mat(AR, O, AR)
+    lop_L = transf_mat_T(AL, O, AL)
+    chi_mps = get_chi(AL)
+    chi_mpo = dims(domain(O))[2]
+
+    ER = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
+    EL = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
+    _, ER = eigsolve(lop_R, ER, 1)
+    _, EL = eigsolve(lop_L, EL, 1)
+    EL, ER = EL[1], ER[1]
+    
+    function map_AC(AC::TensorMap{ComplexSpace, 2, 1})
+        @tensor updated_AC[-1, -2; -3] := AC[1, 3, 2] * EL'[-1, 1, 4] * ER[2, 5, -3] * O[4, -2, 3, 5] 
+        return updated_AC
+    end
+    function map_C(C::TensorMap{ComplexSpace, 1, 1})
+        @tensor updated_C[-1; -2] := C[1, 2] * EL'[-1, 1, 3] * ER[2, 3, -2] 
+        return updated_C
+    end
+    return map_AC, map_C
+end
+
+function calculate_ALR(AC::TensorMap{ComplexSpace, 2, 1}, C::TensorMap{ComplexSpace, 1, 1})
+    UAC_l, _ = leftorth(AC; alg=Polar())
+    UC_l, _ = leftorth(C; alg=Polar())
+
+    _, UAC_r = rightorth(permute(AC, (1,), (2,3)); alg=Polar())
+    _, UC_r = rightorth(C; alg=Polar())
+
+    AL = UAC_l * UC_l'
+    AR = permute(UC_r' * UAC_r, (1, 2), (3,))
+
+    return AL, AR    
+end
