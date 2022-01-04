@@ -7,59 +7,75 @@ using TensorKitAD
 using Zygote
 using KrylovKit
 using LinearAlgebra
+using Plots
+
 using Revise
 using statmech_tm_solver
 
+O = mpo_square_ising(0.4)
 O = mpo_triangular_AF_ising()
-A = quickload("ckpt_variational_chi16")
-
-_, AL = left_canonical_QR(A)
-_, AR = right_canonical_QR(A)
-
-map_AC, map_C = tangent_map_tn(O, AL, AR)
-
+A0 = quickload("ckpt_variational_chi16")
+@show nonherm_cost_func(O, A0)
+@show free_energy(O, A0)
 
 A = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
 _, AL = left_canonical_QR(A)
 _, AR = right_canonical_QR(A)
 
-#map_AC, map_C = tangent_map_tn(O, AL, AR)
-#
-#W, _ = eig(map_C)
-#W = diag(W.data)
-#
-#using Plots
-#plot(real.(W), imag.(W), seriestype=:scatter )
-
-    AC = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
-    C = TensorMap(rand, ComplexF64, ℂ^16, ℂ^16)
-
-
-    fmap_AC, fmap_C = tangent_map(O, AL, AR)
-
-    shifted_fmap_AC(AC::TensorMap{ComplexSpace, 2, 1}) = fmap_AC(AC) + AC
-    shifted_fmap_C(C::TensorMap{ComplexSpace, 1, 1}) = fmap_C(C) + C
-
-    #AC = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
-    #C = TensorMap(rand, ComplexF64, ℂ^16, ℂ^16)
-    #_, AC = eigsolve(fmap_AC, AC, 1, :LR)
-    #_, C = eigsolve(fmap_C, C, 1, :LR)
-    #AC = AC[1]
-    #C = C[1]
-
-    AC = shifted_fmap_AC(AC)
-    C = shifted_fmap_C(C)
-
-    AL, AR = calculate_ALR(AC, C)
-
+function effective_spect(A::TensorMap{ComplexSpace, 2, 1})
+    _, AL = left_canonical_QR(A)
+    _, AR = right_canonical_QR(A)
     map_AC, map_C = tangent_map_tn(O, AL, AR)
     W, _ = eig(map_C)
     W = diag(W.data)
 
-    using Plots
-    plot(real.(W), imag.(W), seriestype=:scatter )
-    @show nonherm_cost_func(O, AL)
+    return W 
+end
+function effective_spect(AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{ComplexSpace, 2, 1})
+    map_AC, map_C = tangent_map_tn(O, AL, AR)
+    WAC, _ = eig(map_AC)
+    WAC = diag(WAC.data)
 
+    WC, _ = eig(map_C)
+    WC = diag(WC.data)
+
+    return WAC, WC 
+end
+
+W = effective_spect(A*exp(1im*pi/2))
+Wmax = findmax(abs.(W))[1] + 0.1
+
+plot(real.(W), imag.(W), seriestype=:scatter, xlims=(-Wmax, Wmax), ylims=(-Wmax, Wmax), size=(500,500))
+
+for ix in 1:20
+    fmap_AC, fmap_C = tangent_map(O, AL, AR)
+
+    #shifted_fmap_AC(AC::TensorMap{ComplexSpace, 2, 1}) = fmap_AC(AC) + AC
+    #shifted_fmap_C(C::TensorMap{ComplexSpace, 1, 1}) = fmap_C(C) + C
+
+    AC = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
+    C = TensorMap(rand, ComplexF64, ℂ^16, ℂ^16)
+    _, AC = eigsolve(fmap_AC, AC, 1, :LR)
+    _, C = eigsolve(fmap_C, C, 1, :LR)
+    AC = AC[1]
+    C = C[1]
+
+    #AC = shifted_fmap_AC(AC)
+    #C = shifted_fmap_C(C)
+
+    AL, AR = calculate_ALR(AC, C)
+    #WAC, WC = effective_spect(AL, AR)
+    #Wmax = findmax(abs.(WAC))[1] + 0.1
+    #plot(real.(WAC), imag.(WAC), seriestype=:scatter, xlims=(-Wmax, Wmax), ylims=(-Wmax, Wmax), size=(500,500))
+    #plot!(real.(WC), imag.(WC), seriestype=:scatter)
+    @show nonherm_cost_func(O, AL), nonherm_cost_func(O, AR)
+    #@show free_energy(O, AL), free_energy(O, AR)
+
+    lopR = transf_mat(AR, O, AR)
+    ER = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
+    ws, vs = eigsolve(lopR, ER, 1); @show abs.(ws)
+
+end
 
 phi = cmps(rand, 6, 4)
 psi = cmps(rand, 2, 4)

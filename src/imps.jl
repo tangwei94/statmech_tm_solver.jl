@@ -271,6 +271,9 @@ function tangent_map_tn(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexS
     _, ER = eigsolve(lop_R, ER, 1)
     _, EL = eigsolve(lop_L, EL, 1)
     EL, ER = EL[1], ER[1]
+    
+    @tensor norm = ER[1,2,3]*EL'[3,1,2]
+    ER = ER / norm
 
     @tensor map_AC[-1, -2, -3; -4, -5, -6] := EL'[-1, -4, 1] * O[1, -2, -5, 2] * ER[-6, 2, -3]
     @tensor map_C[-1, -2; -3, -4] := EL'[-1, -3, 1] * ER[-4, 1, -2]
@@ -290,6 +293,9 @@ function tangent_map(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexSpac
     _, EL = eigsolve(lop_L, EL, 1)
     EL, ER = EL[1], ER[1]
     
+    @tensor norm = ER[1,2,3]*EL'[3,1,2]
+    ER = ER / norm
+
     function map_AC(AC::TensorMap{ComplexSpace, 2, 1})
         @tensor updated_AC[-1, -2; -3] := AC[1, 3, 2] * EL'[-1, 1, 4] * ER[2, 5, -3] * O[4, -2, 3, 5] 
         return updated_AC

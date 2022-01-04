@@ -50,6 +50,7 @@ export  toarray,
         quickload,
         logsumexp
 
+# mpo_zoo.jl
 export  mpo_triangular_AF_ising,
         mpo_triangular_AF_ising_alternative,
         mpo_triangular_AF_ising_adapter,
