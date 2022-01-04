@@ -72,8 +72,10 @@ for ix in 1:20
     #@show free_energy(O, AL), free_energy(O, AR)
 
     lopR = transf_mat(AR, O, AR)
+    lopL = transf_mat_T(AL, O, AL)
     ER = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
-    ws, vs = eigsolve(lopR, ER, 1); @show abs.(ws)
+    ws, vs = eigsolve(lopR, ER, 3); @show abs.(ws[1:3])
+    ws, vs = eigsolve(lopL, ER, 3); @show abs.(ws[1:3])
 
 end
 
