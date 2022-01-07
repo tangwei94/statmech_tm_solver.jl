@@ -268,21 +268,12 @@ function tangent_map_tn(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexS
 
     ER = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
     EL = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
-    _, ER = eigsolve(lop_R, ER, 3)
-    _, EL = eigsolve(lop_L, EL, 3)
-    EL1, ER1 = EL[1], ER[1]
-    EL2, ER2 = EL[2], ER[2]
-    EL3, ER3 = EL[3], ER[3]
+    _, ER = eigsolve(lop_R, ER, 1)
+    _, EL = eigsolve(lop_L, EL, 1)
+    EL, ER = EL[1], ER[1]
     
-    @tensor norm = ER1[1,2,3]*EL1'[3,1,2]
-    ER1 = ER1 / norm
-    @tensor norm2 = ER2[1,2,3]*EL2'[3,1,2]
-    ER2 = ER2 / norm
-    @tensor norm3 = ER3[1,2,3]*EL3'[3,1,2]
-    ER3 = ER3 / norm
-
-    EL = EL1# + EL2 + EL3
-    ER = ER1# + ER2 + ER3
+    @tensor norm = ER[1,2,3]*EL'[3,1,2]
+    ER = ER / norm
 
     @tensor map_AC[-1, -2, -3; -4, -5, -6] := EL'[-1, -4, 1] * O[1, -2, -5, 2] * ER[-6, 2, -3]
     @tensor map_C[-1, -2; -3, -4] := EL'[-1, -3, 1] * ER[-4, 1, -2]
@@ -300,19 +291,10 @@ function tangent_map(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexSpac
     EL = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
     _, ER = eigsolve(lop_R, ER, 3)
     _, EL = eigsolve(lop_L, EL, 3)
-    EL1, ER1 = EL[1], ER[1]
-    EL2, ER2 = EL[2], ER[2]
-    EL3, ER3 = EL[3], ER[3]
+    EL, ER = EL[1], ER[1]
     
-    @tensor norm = ER1[1,2,3]*EL1'[3,1,2]
-    ER1 = ER1 / norm
-    @tensor norm2 = ER2[1,2,3]*EL2'[3,1,2]
-    ER2 = ER2 / norm
-    @tensor norm3 = ER3[1,2,3]*EL3'[3,1,2]
-    ER3 = ER3 / norm
-
-    EL = EL1# + EL2 + EL3
-    ER = ER1# + ER2 + ER3
+    @tensor norm = ER[1,2,3]*EL'[3,1,2]
+    ER = ER / norm
 
     function map_AC(AC::TensorMap{ComplexSpace, 2, 1})
         @tensor updated_AC[-1, -2; -3] := AC[1, 3, 2] * EL'[-1, 1, 4] * ER[2, 5, -3] * O[4, -2, 3, 5] 
@@ -325,6 +307,11 @@ function tangent_map(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexSpac
     return map_AC, map_C
 end
 
+"""
+    calculate_ALR(AC::TensorMap{ComplexSpace, 2, 1}, C::TensorMap{ComplexSpace, 1, 1}) -> AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{ComplexSpace, 2, 1}, ϵL::Float64, ϵR::Float64
+
+    From `AC` and `C`, calculate the AL and AR tensors. Calculate the convergence measures `ϵL` and `ϵR` as well. 
+"""
 function calculate_ALR(AC::TensorMap{ComplexSpace, 2, 1}, C::TensorMap{ComplexSpace, 1, 1})
     UAC_l, _ = leftorth(AC; alg=Polar())
     UC_l, _ = leftorth(C; alg=Polar())
@@ -335,5 +322,8 @@ function calculate_ALR(AC::TensorMap{ComplexSpace, 2, 1}, C::TensorMap{ComplexSp
     AL = UAC_l * UC_l'
     AR = permute(UC_r' * UAC_r, (1, 2), (3,))
 
-    return AL, AR    
+    ϵL = norm(AC - AL * C)
+    ϵR = norm(permute(AC, (1,), (2, 3)) - C * permute(AR, (1,), (2, 3)))
+
+    return AL, AR, ϵL, ϵR   
 end

@@ -12,13 +12,15 @@ using Plots
 using Revise
 using statmech_tm_solver
 
-O = mpo_square_ising(0.4)
-O = mpo_triangular_AF_ising()
-A0 = quickload("ckpt_variational_chi16")
-@show nonherm_cost_func(O, A0)
-@show free_energy(O, A0)
+T = mpo_triangular_AF_ising()
+T_adj = reshape(T.data, (2, 2, 2, 2))
+T_adj = permutedims(conj.(T_adj), (1, 3, 2, 4))
+T_adj = TensorMap(T_adj, ℂ^2*ℂ^2, ℂ^2*ℂ^2)
 
-A = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
+chi = 8
+
+A = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
+A = act(T, A); chi=chi*2
 _, AL = left_canonical_QR(A)
 _, AR = right_canonical_QR(A)
 
@@ -42,10 +44,9 @@ function effective_spect(AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{Comple
     return WAC, WC 
 end
 
-W = effective_spect(A*exp(1im*pi/2))
-Wmax = findmax(abs.(W))[1] + 0.1
+cost_func_measure = 1
 
-plot(real.(W), imag.(W), seriestype=:scatter, xlims=(-Wmax, Wmax), ylims=(-Wmax, Wmax), size=(500,500))
+O = T
 
 for ix in 1:20
     fmap_AC, fmap_C = tangent_map(O, AL, AR)
@@ -53,8 +54,8 @@ for ix in 1:20
     #shifted_fmap_AC(AC::TensorMap{ComplexSpace, 2, 1}) = fmap_AC(AC) + AC
     #shifted_fmap_C(C::TensorMap{ComplexSpace, 1, 1}) = fmap_C(C) + C
 
-    AC = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
-    C = TensorMap(rand, ComplexF64, ℂ^16, ℂ^16)
+    AC = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
+    C = TensorMap(rand, ComplexF64, ℂ^chi, ℂ^chi)
     _, AC = eigsolve(fmap_AC, AC, 1, :LR)
     _, C = eigsolve(fmap_C, C, 1, :LR)
     AC = AC[1]
@@ -63,21 +64,41 @@ for ix in 1:20
     #AC = shifted_fmap_AC(AC)
     #C = shifted_fmap_C(C)
 
-    AL, AR = calculate_ALR(AC, C)
+    AL1, AR1, ϵL, ϵR = calculate_ALR(AC, C)
     #WAC, WC = effective_spect(AL, AR)
     #Wmax = findmax(abs.(WAC))[1] + 0.1
     #plot(real.(WAC), imag.(WAC), seriestype=:scatter, xlims=(-Wmax, Wmax), ylims=(-Wmax, Wmax), size=(500,500))
     #plot!(real.(WC), imag.(WC), seriestype=:scatter)
-    @show nonherm_cost_func(O, AL), nonherm_cost_func(O, AR)
-    #@show free_energy(O, AL), free_energy(O, AR)
 
-    lopR = transf_mat(AR, O, AR)
-    lopL = transf_mat_T(AL, O, AL)
-    ER = TensorMap(rand, ComplexF64, ℂ^16*ℂ^2, ℂ^16)
-    ws, vs = eigsolve(lopR, ER, 3); @show abs.(ws[1:3])
-    ws, vs = eigsolve(lopL, ER, 3); @show abs.(ws[1:3])
+    @show nonherm_cost_func(O, AL), nonherm_cost_func(O, AR)
+    @show free_energy(O, AL), free_energy(O, AR)
+
+    cost_func_measure1 = nonherm_cost_func(O, AL1)
+    if cost_func_measure1 <= cost_func_measure
+        AL = AL1
+        AR = AR1 
+        cost_func_measure = cost_func_measure1
+    else
+        @show cost_func_measure1, cost_func_measure 
+        break
+    end
 
 end
+
+
+A1 = quickload("ckpt_iTEBD_chi32_alternative")
+@tensor TA1[-1, -2; -3, -4] := A1'[-3, -1, 1] * A1[-2, 1, -4]
+
+wA1, vRA1 = eig(TA1)
+vLA1 = inv(vRA1)
+wA1 = diag(wA1.data)
+plot(real.(wA1), imag.(wA1), seriestype=:scatter, xlims=(-1, 1), ylims=(-1, 1), size=(500, 500))
+thetas = (1:100) * pi / 50
+plot!(cos.(thetas), sin.(thetas))
+abs_wA1 = abs.(wA1)
+sort(abs_wA1)[end-1]
+
+abs_wA1[end-1]
 
 phi = cmps(rand, 6, 4)
 psi = cmps(rand, 2, 4)
