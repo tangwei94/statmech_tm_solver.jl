@@ -9,6 +9,27 @@ using Plots
 using Revise
 using statmech_tm_solver
 
+"""
+function effective_spect(A::TensorMap{ComplexSpace, 2, 1})
+    _, AL = left_canonical_QR(A)
+    _, AR = right_canonical_QR(A)
+    map_AC, map_C = tangent_map_tn(O, AL, AR)
+    W, _ = eig(map_C)
+    W = diag(W.data)
+
+    return W 
+end
+function effective_spect(AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{ComplexSpace, 2, 1})
+    map_AC, map_C = tangent_map_tn(O, AL, AR)
+    WAC, _ = eig(map_AC)
+    WAC = diag(WAC.data)
+
+    WC, _ = eig(map_C)
+    WC = diag(WC.data)
+
+    return WAC, WC 
+end
+"""
 T = mpo_triangular_AF_ising()
 T_adj = reshape(T.data, (2, 2, 2, 2))
 T_adj = permutedims(conj.(T_adj), (1, 3, 2, 4))
