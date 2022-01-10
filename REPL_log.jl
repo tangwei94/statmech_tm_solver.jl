@@ -12,18 +12,37 @@ using Plots
 using Revise
 using statmech_tm_solver
 
+AU = TensorMap(rand, ComplexF64, ℂ^12*ℂ^2, ℂ^12)
+AD = TensorMap(rand, ComplexF64, ℂ^12*ℂ^2, ℂ^12)
+AU_R, AD_R = biorth_right_canonical(AU, AD);
+@tensor A_Prod[-1; -2] := AD_R[-1, 2, 1] * AU_R'[1, -2, 2]
+AU_L, AD_L = biorth_left_canonical(AU, AD);
+AU_L' * AD_L
+
+#############################################
+
 T = mpo_triangular_AF_ising()
 T_adj = reshape(T.data, (2, 2, 2, 2))
 T_adj = permutedims(conj.(T_adj), (1, 3, 2, 4))
 T_adj = TensorMap(T_adj, ℂ^2*ℂ^2, ℂ^2*ℂ^2)
 
-chi = 8
-
+chi = 4
 A = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
 A = act(T, A); chi=chi*2
 _, AL = left_canonical_QR(A)
 _, AR = right_canonical_QR(A)
+BL, BR = AL, AR
 
+A = act(T, AL)
+B = act(T_adj, BL)
+chi=chi*2
+_, AL = left_canonical_QR(A)
+_, AR = right_canonical_QR(A)
+_, BL = left_canonical_QR(B)
+_, BR = right_canonical_QR(B)
+
+
+"""
 function effective_spect(A::TensorMap{ComplexSpace, 2, 1})
     _, AL = left_canonical_QR(A)
     _, AR = right_canonical_QR(A)
@@ -43,50 +62,106 @@ function effective_spect(AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{Comple
 
     return WAC, WC 
 end
+"""
 
-cost_func_measure = 1
-
-O = T
+flag = 1
 
 for ix in 1:20
-    fmap_AC, fmap_C = tangent_map(O, AL, AR)
-
-    #shifted_fmap_AC(AC::TensorMap{ComplexSpace, 2, 1}) = fmap_AC(AC) + AC
-    #shifted_fmap_C(C::TensorMap{ComplexSpace, 1, 1}) = fmap_C(C) + C
+    fmap_AC, fmap_C = tangent_map(T, AL, AR)
 
     AC = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
     C = TensorMap(rand, ComplexF64, ℂ^chi, ℂ^chi)
-    _, AC = eigsolve(fmap_AC, AC, 1, :LR)
-    _, C = eigsolve(fmap_C, C, 1, :LR)
+    _, AC = eigsolve(fmap_AC, AC, 1, :LR) 
     AC = AC[1]
+    _, C = eigsolve(fmap_C, C, 1, :LR) 
     C = C[1]
 
-    #AC = shifted_fmap_AC(AC)
-    #C = shifted_fmap_C(C)
-
     AL1, AR1, ϵL, ϵR = calculate_ALR(AC, C)
+
     #WAC, WC = effective_spect(AL, AR)
     #Wmax = findmax(abs.(WAC))[1] + 0.1
     #plot(real.(WAC), imag.(WAC), seriestype=:scatter, xlims=(-Wmax, Wmax), ylims=(-Wmax, Wmax), size=(500,500))
     #plot!(real.(WC), imag.(WC), seriestype=:scatter)
 
-    @show nonherm_cost_func(O, AL), nonherm_cost_func(O, AR)
-    @show free_energy(O, AL), free_energy(O, AR)
-
-    cost_func_measure1 = nonherm_cost_func(O, AL1)
-    if cost_func_measure1 <= cost_func_measure
-        AL = AL1
-        AR = AR1 
-        cost_func_measure = cost_func_measure1
-    else
-        @show cost_func_measure1, cost_func_measure 
+    flag1 = nonherm_cost_func(T, AL1)
+    if flag1 > flag
+        flag = 1
         break
+    else 
+        flag = flag1
+        AL, AR = AL1, AR1
     end
 
+    @show nonherm_cost_func(T, AL), nonherm_cost_func(T, AR)
+    @show ϵL, ϵR
+    @show free_energy(T, AL), free_energy(T, AR)
 end
+
+for ix in 1:20
+    fmap_BC, fmap_C = tangent_map(T_adj, BL, BR)
+
+    BC = TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi)
+    C = TensorMap(rand, ComplexF64, ℂ^chi, ℂ^chi)
+    λBC, BC = eigsolve(fmap_BC, BC, 1, :LR) 
+    BC = BC[1]
+    λC, C = eigsolve(fmap_C, C, 1, :LR) 
+    C = C[1]
+
+    BL1, BR1, ϵL, ϵR = calculate_ALR(BC, C)
+
+    #WAC, WC = effective_spect(AL, AR)
+    #Wmax = findmax(abs.(WAC))[1] + 0.1
+    #plot(real.(WAC), imag.(WAC), seriestype=:scatter, xlims=(-Wmax, Wmax), ylims=(-Wmax, Wmax), size=(500,500))
+    #plot!(real.(WC), imag.(WC), seriestype=:scatter)
+    
+    flag1 = nonherm_cost_func(T_adj, BL1)
+    if flag1 > flag
+        flag = 1
+        break
+    else 
+        flag = flag1
+        BL, BR = BL1, BR1
+    end
+
+    @show nonherm_cost_func(T_adj, BL), nonherm_cost_func(T_adj, BR)
+    @show free_energy(T_adj, BL), free_energy(T_adj, BR)
+end
+
+@show ovlp(BL, act(T, AL)) / ovlp(BL, AL) |> log
+
+quicksave("AL_chi$(chi)", AL)
+quicksave("AR_chi$(chi)", AR)
+quicksave("BL_chi$(chi)", BL)
+quicksave("BR_chi$(chi)", BR)
+
+chi=32
+AL0 = quickload("AL_chi$(chi)")
+AR0 = quickload("AR_chi$(chi)")
+
+lop = transf_mat(AL0, T, AL0)
+w, _ = eigsolve(lop, TensorMap(rand, ComplexF64, ℂ^chi*ℂ^2, ℂ^chi), 3)
+norm.(w)
+
+mapAC, mapC = tangent_map_tn(T, AL0, AR0);
+WC, _ = eig(mapC);
+WC = diag(WC.data)
+WAC, _ = eig(mapAC);
+WAC = diag(WAC.data)
+
+Wmax = findmax(norm.(WAC))[1]
+plot(real.(WAC), imag.(WAC), seriestype=:scatter, xlims=(-Wmax, Wmax), ylims=(-Wmax, Wmax), size=(500,500))
+plot!(real.(WC), imag.(WC), seriestype=:scatter)
+
+entanglement_spectrum(AL0)
+sum(entanglement_spectrum(AR0) .> 1e-5) 
+entanglement_entropy(AL0)
 
 
 A1 = quickload("ckpt_iTEBD_chi32_alternative")
+sum(entanglement_spectrum(A1) .> 1e-5)  
+entanglement_entropy(A1)
+
+
 @tensor TA1[-1, -2; -3, -4] := A1'[-3, -1, 1] * A1[-2, 1, -4]
 
 wA1, vRA1 = eig(TA1)
@@ -133,7 +208,6 @@ for jx in 1:10
         @show tol, step, log_fidel(phi, psi, L)
     end
 end
-
 
 cef = diag(vL' * v)
 
