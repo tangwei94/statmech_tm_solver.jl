@@ -289,8 +289,8 @@ function tangent_map(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexSpac
 
     ER = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
     EL = TensorMap(rand, ComplexF64, ℂ^chi_mps*ℂ^chi_mpo, ℂ^chi_mps)
-    _, ER = eigsolve(lop_R, ER, 3)
-    _, EL = eigsolve(lop_L, EL, 3)
+    _, ER = eigsolve(lop_R, ER, 1)
+    _, EL = eigsolve(lop_L, EL, 1)
     EL, ER = EL[1], ER[1]
     
     @tensor norm = ER[1,2,3]*EL'[3,1,2]
@@ -313,17 +313,96 @@ end
     From `AC` and `C`, calculate the AL and AR tensors. Calculate the convergence measures `ϵL` and `ϵR` as well. 
 """
 function calculate_ALR(AC::TensorMap{ComplexSpace, 2, 1}, C::TensorMap{ComplexSpace, 1, 1})
-    UAC_l, _ = leftorth(AC; alg=Polar())
-    UC_l, _ = leftorth(C; alg=Polar())
+    UAC_l, RAC = leftorth(AC; alg=Polar())
+    UC_l, RC = leftorth(C; alg=Polar())
 
-    _, UAC_r = rightorth(permute(AC, (1,), (2,3)); alg=Polar())
-    _, UC_r = rightorth(C; alg=Polar())
+    LAC, UAC_r = rightorth(permute(AC, (1,), (2,3)); alg=Polar())
+    LC, UC_r = rightorth(C; alg=Polar())
 
     AL = UAC_l * UC_l'
     AR = permute(UC_r' * UAC_r, (1, 2), (3,))
 
-    ϵL = norm(AC - AL * C)
-    ϵR = norm(permute(AC, (1,), (2, 3)) - C * permute(AR, (1,), (2, 3)))
+    ϵL = norm(RAC - RC)
+    ϵR = norm(LAC - LC)
+    #ϵL = norm(AC - AL * C)
+    #ϵR = norm(permute(AC, (1,), (2, 3)) - C * permute(AR, (1,), (2, 3)))
 
     return AL, AR, ϵL, ϵR   
+end
+
+"""
+    biorth_right_canonical(AU::TensorMap{ComplexSpace, 2, 1}, AD::TensorMap{ComplexSpace, 2, 1}) -> AU_R::TensorMap{ComplexSpace, 2, 1}, AD_R::TensorMap{ComplexSpace, 2, 1}
+
+    right biorthogonalization of MPSes `AU` and `AD` into `AU_R` and `AD_R`
+"""
+function biorth_right_canonical(AU::TensorMap{ComplexSpace, 2, 1}, AD::TensorMap{ComplexSpace, 2, 1})
+    chiU, chiD = get_chi(AU), get_chi(AD)
+
+    lop = transf_mat(AU, AD)
+    wR, CR = eigsolve(lop, TensorMap(rand, ComplexF64, ℂ^chiD, ℂ^chiU), 1)
+    wR, CR = wR[1], CR[1]
+
+    #UR, S, VR = tsvd(CR)
+    #S = sqrt(S)
+
+    #wR_abs, wR_arg = abs(wR), angle(wR)
+    #Sinv = pinv(S)
+    #@tensor AU_R[-1, -2; -3] := Sinv[-1, 1] * VR[1, 2] * AU[2, -2, 3] * VR'[3, 4] * S[4, -3] / sqrt(wR_abs)
+    #@tensor AD_R[-1, -2; -3] := Sinv[-1, 1] * UR'[1, 2] * AD[2, -2, 3] * UR[3, 4] * S[4, -3] / sqrt(wR_abs) * exp(-1im*wR_arg)
+
+    #return AU_R, AD_R
+
+    @tensor AD_R[-1, -2; -3] := pinv(CR)[-1, 1] * AD[1, -2, 2] * CR[2, -3] / wR
+    return AU, AD_R
+end
+
+"""
+    biorth_left_canonical(AU::TensorMap{ComplexSpace, 2, 1}, AD::TensorMap{ComplexSpace, 2, 1}) -> AU_L::TensorMap{ComplexSpace, 2, 1}, AD_L::TensorMap{ComplexSpace, 2, 1}
+
+    left biorthogonalization of MPSes `AU` and `AD` into `AU_L` and `AD_L`
+"""
+function biorth_left_canonical(AU::TensorMap{ComplexSpace, 2, 1}, AD::TensorMap{ComplexSpace, 2, 1})
+    chiU, chiD = get_chi(AU), get_chi(AD)
+
+    lopT = transf_mat_T(AU, AD)
+    wL, CL = eigsolve(lopT, TensorMap(rand, ComplexF64, ℂ^chiD, ℂ^chiU), 1)
+    wL, CL = wL[1], CL[1]
+
+    #UL, S, VL = tsvd(CL')
+    #S = sqrt(S)
+
+    #wL_abs, wL_arg = abs(wL), angle(wL)
+    #Sinv = pinv(S)
+
+    #@tensor AU_L[-1, -2; -3] := S[-1, 1] * UL'[1, 2] * AU[2, -2, 3] * UL[3, 4] * Sinv[4, -3] / sqrt(wL_abs)
+    #@tensor AD_L[-1, -2; -3] := S[-1, 1] * VL[1, 2] * AD[2, -2, 3] * VL'[3, 4] * Sinv[4, -3] / sqrt(wL_abs) * exp(1im*wL_arg)
+
+    @tensor AD_L[-1, -2; -3] := CL'[-1, 1] * AD[1, -2, 2] * pinv(CL')[2, -3] / wL'
+    return AU, AD_L
+end
+
+function tangent_map(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{ComplexSpace, 2, 1}, BL::TensorMap{ComplexSpace, 2, 1}, BR::TensorMap{ComplexSpace, 2, 1})
+    lop_R = transf_mat(AR, O, BR)
+    lop_L = transf_mat_T(AL, O, BL)
+    chi_mpsA, chi_mpsB = get_chi(AL), get_chi(BL)
+    chi_mpo = dims(domain(O))[2]
+
+    ER = TensorMap(rand, ComplexF64, ℂ^chi_mpsA*ℂ^chi_mpo, ℂ^chi_mpsB)
+    EL = TensorMap(rand, ComplexF64, ℂ^chi_mpsA*ℂ^chi_mpo, ℂ^chi_mpsB)
+    _, ER = eigsolve(lop_R, ER, 1)
+    _, EL = eigsolve(lop_L, EL, 1)
+    EL, ER = EL[1], ER[1]
+    
+    @tensor norm = ER[1,2,3]*EL'[3,1,2]
+    ER = ER / norm
+
+    function map_AC(AC::TensorMap{ComplexSpace, 2, 1})
+        @tensor updated_AC[-1, -2; -3] := AC[1, 3, 2] * EL'[-1, 1, 4] * ER[2, 5, -3] * O[4, -2, 3, 5] 
+        return updated_AC
+    end
+    function map_C(C::TensorMap{ComplexSpace, 1, 1})
+        @tensor updated_C[-1; -2] := C[1, 2] * EL'[-1, 1, 3] * ER[2, 3, -2] 
+        return updated_C
+    end
+    return map_AC, map_C
 end

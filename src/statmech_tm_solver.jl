@@ -38,7 +38,9 @@ export  act,
         expand,
         tangent_map_tn, 
         tangent_map, 
-        calculate_ALR
+        calculate_ALR,
+        biorth_right_canonical, 
+        biorth_left_canonical
 
 # utils.jl
 export  toarray,
@@ -57,14 +59,17 @@ export  mpo_triangular_AF_ising,
         mpo_kink_processor,
         mpo_square_ising
 
+# bi_direction.jl
 export  bimps, 
         A_canonical, 
         B_canonical
 
+# cmpo.jl
 export  cmpo,
         get_phy,
         get_vir
 
+# cmps.jl
 export  cmps,
         convert_to_cmps,
         right_canonical,
@@ -73,17 +78,21 @@ export  cmps,
         gram_matrix,
         tangent_proj
 
+# cmpo_zoo.jl
 export  cmpo_ising,
         energy_quantum_ising,
         cmpo_xxz,
         energy_quantum_xxz,
         cmpo_ising_realtime
 
+# bi_direction_q.jl
 export  qbimps
 
+# attempts.jl
 export  pseudo_ovlp,
         variational_truncate
 
+# TensorKitAD_supp.jl
 export convert_to_array
 
 include("imps.jl")
