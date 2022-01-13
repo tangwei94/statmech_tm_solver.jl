@@ -3,6 +3,11 @@ struct cmps
     R::TensorMap{ComplexSpace, 2, 1}
 end
 
+"""
+    rrule(::typeof(cmps), Q::TensorMap{ComplexSpace, 1, 1}, R::TensorMap{ComplexSpace, 2, 1})
+
+    rrule for the constructor of `cmps`.
+"""
 function rrule(::typeof(cmps), Q::TensorMap{ComplexSpace, 1, 1}, R::TensorMap{ComplexSpace, 2, 1})
     function cmps_pushback(f̄wd)
         return NoTangent(), f̄wd.Q, f̄wd.R
@@ -27,7 +32,6 @@ end
 *(psi::cmps, x::Number) = cmps(psi.Q * x, psi.R * x)
 *(x::Number, psi::cmps) = cmps(psi.Q * x, psi.R * x)
 similar(psi::cmps) = cmps(similar(psi.Q), similar(psi.R))
-
 length(iter::cmps) = length(iter.Q.data) + length(iter.R.data)
 iterate(iter::cmps) = (iter.Q[1], 1)
 function iterate(iter::cmps, state)
@@ -58,7 +62,6 @@ end
 @inline get_chi(psi::cmps) = get_chi(psi.R)
 @inline get_d(psi::cmps) = get_d(psi.R)
 
-
 """
     convert_to_cmps(arr::Array{<:Complex, 3})
 
@@ -74,7 +77,7 @@ end
 """
     convert_to_cmps(arr::TensorMap{ComplexSpace, 2, 1})
     
-    Convert a C^chi*C^(d+1) <- C^chi TensorMap to a cMPS. 
+    Convert a ℂ^chi*ℂ^(d+1) ← ℂ^chi TensorMap to a cMPS. 
 """
 function convert_to_cmps(arr::TensorMap{ComplexSpace, 2, 1})
     return convert_to_cmps(convert_to_array(arr))
@@ -92,8 +95,6 @@ function convert_to_array(psi::cmps)
     arr = cat(Q_arr, R_arr, dims=2)
     return arr
 end
-
-
 
 """
     transf_mat(psi::cmps, phi::cmps) -> Function
@@ -179,7 +180,7 @@ function left_canonical(psi::cmps)
 end
 
 """
-    right_canonical(psi::cmps)
+    right_canonical(psi::cmps) -> Y::Matrix, psiR::cmps
 
     Convert the input cmps into the right-canonical form. 
     Return the gauge transformation matrix Y and the right-canonicalized cmps. 
@@ -206,6 +207,11 @@ function right_canonical(psi::cmps)
     return Y, cmps(Q, R)
 end
 
+"""
+    entanglement_spectrum(psi::cmps) -> Vector
+
+    return the entanglement spectrum of an infinite cmps.
+"""
 function entanglement_spectrum(psi::cmps)
     _, psi = left_canonical(psi)
     Y, _ = right_canonical(psi)
@@ -214,11 +220,21 @@ function entanglement_spectrum(psi::cmps)
     return s ./ sum(s)
 end
 
+"""
+    entanglement_entropy(psi::cmps) -> Float64
+
+    return the entanglement entropy.
+"""
 function entanglement_entropy(psi::cmps)
     s = entanglement_spectrum(psi)
     return -sum(s .* log.(s))
 end
 
+"""
+    expand(psi::cmps, chi::Integer, perturb::Float64=1e-3) -> cmps
+
+    expand the cmps `psi` to a target bond dimension `chi` by adding small numbers of size `perturb`.
+"""
 function expand(psi::cmps, chi::Integer, perturb::Float64=1e-3)
     chi0, d = get_chi(psi), get_d(psi)
     if chi <= chi0
