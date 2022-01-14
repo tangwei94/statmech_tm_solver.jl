@@ -39,7 +39,8 @@ end
 """
     convert_to_tensormap(arr::Array{<:Complex}, d_dom::Integer) -> TensorMap
 
-    Given the dimension of the domain, convert an array to the tensormap. 
+    Given the dimension of the domain, convert an array to the tensormap.
+    TODO: fix vector cases. 
 """
 function convert_to_tensormap(arr::Array{<:Complex}, d_dom::Integer)
     size_arr = size(arr)
