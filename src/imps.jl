@@ -381,7 +381,7 @@ function biorth_left_canonical(AU::TensorMap{ComplexSpace, 2, 1}, AD::TensorMap{
     return AU, AD_L
 end
 
-# to do. modify this.
+# FIXME. correct this.
 function tangent_map(O::TensorMap{ComplexSpace, 2, 2}, AL::TensorMap{ComplexSpace, 2, 1}, AR::TensorMap{ComplexSpace, 2, 1}, BL::TensorMap{ComplexSpace, 2, 1}, BR::TensorMap{ComplexSpace, 2, 1})
     lop_R = transf_mat(AR, O, BR)
     lop_L = transf_mat_T(AL, O, BL)
