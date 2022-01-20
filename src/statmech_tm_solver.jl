@@ -75,8 +75,10 @@ export  cmps,
         right_canonical,
         K_mat,
         log_ovlp,
-        gram_matrix,
-        tangent_proj
+        convergence_measure,
+        optimize_conv_meas,
+        compress,
+        truncation_check
 
 # cmpo_zoo.jl
 export  cmpo_ising,
@@ -87,10 +89,6 @@ export  cmpo_ising,
 
 # bi_direction_q.jl
 export  qbimps
-
-# attempts.jl
-export  pseudo_ovlp,
-        variational_truncate
 
 # TensorKitAD_supp.jl
 export convert_to_array
@@ -103,7 +101,6 @@ include("cmpo.jl")
 include("cmps.jl")
 include("cmpo_zoo.jl")
 include("bi_direction_q.jl")
-include("attempts.jl")
 include("TensorKitAD_supp.jl")
 
 end

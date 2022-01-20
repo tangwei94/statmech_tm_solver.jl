@@ -341,97 +341,130 @@ end
     Caculate the log of overlap for two finite uniform cmps `phi` and `psi`. 
     `L` is the length of the uniform cmps. 
 """
-function log_ovlp(phi::cmps, psi::cmps, L::Real)
+function log_ovlp(phi::cmps, psi::cmps, L::Real; sym::Bool=false)
     t_trans = convert_to_array(K_mat(phi, psi))
     tot_dim = get_chi(phi) * get_chi(psi)
     t_trans = reshape(t_trans, (tot_dim, tot_dim))
+    sym && (t_trans = Hermitian(0.5*(t_trans+t_trans')))
     w = eigvals(t_trans)
     return logsumexp(L*w)
 end
 
-function C_matrix(D::TensorMap{ComplexSpace, 1, 1}, L::Real)
-    Cmat = similar(D)
-    w_vec = diag(D.data)
-    N = length(w_vec)
-    for ix in 1:N
-        for iy in 1:N
-            if w_vec[ix] ≈ w_vec[iy]
-                Cmat[ix, iy] = exp(w_vec[ix])
-            else
-                Cmat[ix, iy] = (exp(w_vec[ix] * L) - exp(w_vec[iy] * L)) / (w_vec[ix] - w_vec[iy])
-            end
+""" 
+    convergence_meaure(T::cmpo, ψ::cmps, beta::Real) -> Real
+"""
+function convergence_measure(T::cmpo, ψ::cmps, beta::Real)
+    Tψ = act(T, ψ)
+    return -2*log_ovlp(Tψ, ψ, beta; sym=true) + log_ovlp(Tψ, Tψ, beta; sym=true) + log_ovlp(ψ, ψ, beta; sym=true) |> real
+end
+
+"""
+    optimize_conv_meas(T::cmpo, ψ::cmps, beta::Real)
+"""
+function optimize_conv_meas(T::cmpo, ψ::cmps, beta::Real, Niter::Integer)
+    ψarr = convert_to_array(ψ)
+
+    function _f(x::Array{ComplexF64, 3})
+        ϕ = convert_to_cmps(x)
+        return convergence_measure(T, ϕ, beta)
+    end 
+    function _g!(gx::Array{ComplexF64, 3}, x::Array{ComplexF64, 3})
+        gx .= gradient(_f, x)[1]
+    end
+
+    res = optimize(_f, _g!, ψarr, Optim.Options(show_trace=false, iterations=Niter))
+    return convert_to_cmps(Optim.minimizer(res))
+end
+
+"""
+    compress(psi::cmps, chi::Integer, beta::Real) -> cmps
+
+    Compress the cmps `psi` to the target bond dimension `chi`.
+    Only implemented the case for symmetric cmps.
+"""
+function compress(ψ::cmps, chi::Integer, beta::Real; Niter::Integer=100, tol::Real=1e-12, init=nothing)
+    chi_ψ = get_chi(ψ)
+    if chi_ψ <= chi
+        @warn "target bond dimension $(chi) larger than the current one $(chi_ψ)."
+        return true, 0.0, ψ 
+    end
+
+    K = K_mat(ψ, ψ)
+    K = 0.5*(K + K')
+    W, U = eigh(K)
+
+    log_norm_ψ = logsumexp(diag(W.data)*beta) / beta
+
+    if init === nothing
+        Wmax = findmax(W.data)[1]
+        expK = U * exp((W - Wmax * id(ℂ^chi_ψ^2)) * beta / 2) * U'
+        expK = permute(expK, (2, 3), (1, 4))
+
+        _, _, Ua = tsvd(expK, (4, 1, 2), (3,))
+        #Ub, Sb, _ = tsvd(expK, (1,), (2, 3, 4))
+        #Uc, Sc, _ = tsvd(expK, (2,), (3, 4, 1))
+        #_, Sd, Ud = tsvd(expK, (1, 2, 3), (4,))
+        Pa_arr = Ua.data[1:chi, :]
+        Pa = TensorMap(Pa_arr, ℂ^chi, ℂ^chi_ψ)
+        Q = Pa * ψ.Q * Pa' 
+        @tensor R[-1, -2; -3] := Pa[-1, 1] * ψ.R[1, -2, 2] * Pa'[2, -3]
+        ϕ = cmps(Q, R)
+    else
+        ϕ = init
+    end
+
+    log_fidel = 2*log_ovlp(ϕ, ψ, beta) - log_ovlp(ϕ, ϕ, beta) - log_norm_ψ * beta |> real 
+
+    if log_fidel < -tol || init !== nothing
+        function _f(x::Array{ComplexF64, 3})
+            ϕx = convert_to_cmps(x)
+            return - log_ovlp(ϕx, ψ, beta; sym=true) - log_ovlp(ψ, ϕx, beta; sym=true) + log_ovlp(ϕx, ϕx, beta; sym=true) |> real
+        end 
+        function _g!(gx::Array{ComplexF64, 3}, x::Array{ComplexF64, 3})
+            gx .= gradient(_f, x)[1]
         end
+
+        res = optimize(_f, _g!, convert_to_array(ϕ), LBFGS(), Optim.Options(show_trace=false, iterations=Niter, f_abstol=tol))
+        ϕ = convert_to_cmps(Optim.minimizer(res))
     end
-    return Cmat
+    log_fidel = 2*log_ovlp(ϕ, ψ, beta) - log_ovlp(ϕ, ϕ, beta) - log_norm_ψ * beta |> real
+    status = (log_fidel > -tol)
+    return status, log_fidel, ϕ
 end
-
-function delta_tensor(chi2::Integer)
-    δ = TensorMap(zeros, ComplexF64, ℂ^chi2*ℂ^chi2, ℂ^chi2)
-    for ix in 1:chi2
-        δ[ix, ix, ix] = 1
-    end
-    return δ
-end
-
-function company_tensor(psi::cmps)
-    A = convert_to_array(psi)
-    chi = get_chi(psi)
-    A[:, 1, :] = Matrix{ComplexF64}(I, chi, chi)
-    return convert_to_tensormap(A, 2)
-end
-
 """
-    gram_matrix(psi::cmps, L::Real)
+    truncation_measure(psi::cmps, psi1::cmps, beta::Real)
 
-    calculate the gram matrix. 
+    Check the quality of periodic cMPS truncation from the following aspects:
+    - fidelity 
+    - entanglement spectra
+    - TODO. correlation function 
 """
-function gram_matrix(psi::cmps, L::Real)
-    chi = get_chi(psi)
+function truncation_check(psi::cmps, psi1::cmps, beta::Real)
+    # normalize psi and psi_truncated 
+    chi, chi1 = get_chi(psi), get_chi(psi1)
+    Q = psi.Q - log_ovlp(psi, psi, beta) / beta / 2 * id(ℂ^chi)
+    psi = cmps(Q, psi.R)
+    Q = psi1.Q - log_ovlp(psi1, psi1, beta) / beta / 2 * id(ℂ^chi1)
+    psi1 = cmps(Q, psi1.R)
+    
+    # fidelity
+    fidelity = 2*real(log_ovlp(psi, psi1, beta))
 
+    # entanglement spectra
     K = K_mat(psi, psi)
-    K = permute(K, (2, 1), (4, 3))
-    D, VR = eig(K)
-    VL = inv(VR)' # left eigenvalues 
-   
-    VR = permute(VR, (1,), (3, 2))
-    VL = permute(VL, (1,), (3, 2))
+    W, U = eigh(K)
+    expK = U * exp(W*beta/2) * U'
+    expK = permute(expK, (2, 3), (1, 4))
+    _, SK, _ = tsvd(expK, (4, 1), (2, 3))
+    entangle_spect = diag(SK.data) / SK.data[1]
 
-    δ = delta_tensor(chi^2)
-    C = C_matrix(D, L)
-    A = company_tensor(psi)
-    Iph = id(ℂ^(get_d(psi)+1))
-    Iph[1,1] = 0
-    expD = exp(D*L)
+    K1 = K_mat(psi, psi1)
+    W1, U1 = eigh(K1)
+    expK1 = U1 * exp(W1*beta/2) * U1'
+    expK1 = permute(expK1, (2, 3), (1, 4))
+    _, SK1, _ = tsvd(expK1, (4, 1), (2, 3))
+    entangle_spect1 = diag(SK1.data) / SK1.data[1]
 
-    @tensor gram[-1, -2, -3; -4, -5, -6] := 
-        δ[3, 2, 1] * VL'[1, 7, -5] * A'[8, 7, -6] * VR[-4, 4, 8] * VR[9, 2, -3] * A[10, -2, 9] * VL'[5, -1, 10] * δ'[4, 5, 6] * C[6, 3] + 
-        VL'[2, -1, -5] * Iph[-2, -6] * VR[-4, 1, -3] * expD[1, 2] 
-    return gram
-end
-
-"""
-    tangent_proj(phi::cmps, psi::cmps, L::Real)
-
-    project cmps `phi` into the tangent space of cmps `psi`. `L` is the length of the cmps. 
-"""
-function tangent_proj(phi::cmps, psi::cmps, L::Real, tol::Real)
-
-    gram_psi = gram_matrix(psi, L)
-    gram_psi_inv = pinv(gram_psi; rtol=tol)
-    gram_psi_inv = permute(gram_psi_inv, (6,2,3), (4,5,1))
-
-    K = transf_mat(psi, phi)
-    KT = transf_mat_T(psi, phi)
-    V0 = TensorMap(rand, ComplexF64, ℂ^get_chi(phi), ℂ^get_chi(psi))
-
-    _, VR = eigsolve(K, V0, 1, :LR)
-    VR = VR[1]
-    _, VL = eigsolve(KT, V0, 1, :LR)
-    VL = VL[1]
-
-    phi_tMap = company_tensor(phi)
-
-    @tensor B_proj[-1, -2; -3] := phi_tMap[1, 5, 2] * VL'[3, 1] * VR[2, 4] * gram_psi_inv[4, -1, -2, 3, 5, -3]
-
-    return B_proj
+    return fidelity, entangle_spect[1:chi1^2] - entangle_spect1
+    
 end
