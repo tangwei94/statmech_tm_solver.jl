@@ -70,7 +70,7 @@ end
     Save the mps local tensor `psi` to a `.jld2` file.
 """
 function quicksave(name::String, psi::TensorMap{ComplexSpace, 2, 1})
-    # todo: get convert(Dict, t::AbstractTensorMap) in the manual to work with JLD2?
+    # TODO. get convert(Dict, t::AbstractTensorMap) in the manual to work with JLD2?
     chi, d = get_chi(psi), get_d(psi)
     psi_dict = Dict("chi" => chi,
                     "d" => d,

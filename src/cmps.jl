@@ -97,6 +97,13 @@ function convert_to_array(psi::cmps)
 end
 
 """
+    convert_to_tensormap(psi::cmps)
+
+    Convert a cmps to a tensormap.
+"""
+convert_to_tensormap(psi::cmps) = convert_to_tensormap(convert_to_array(psi), 2)
+
+"""
     transf_mat(psi::cmps, phi::cmps) -> Function
 
     Obtain the transfer matrix of <psi|phi> as a linear operator.
@@ -377,7 +384,7 @@ function optimize_conv_meas(T::cmpo, ψ::cmps, beta::Real, Niter::Integer)
 end
 
 """
-    compress(psi::cmps, chi::Integer, beta::Real) -> cmps
+    compress(psi::cmps, chi::Integer, beta::Real) -> Bool, Real, cmps
 
     Compress the cmps `psi` to the target bond dimension `chi`.
     Only implemented the case for symmetric cmps.
@@ -465,6 +472,6 @@ function truncation_check(psi::cmps, psi1::cmps, beta::Real)
     _, SK1, _ = tsvd(expK1, (4, 1), (2, 3))
     entangle_spect1 = diag(SK1.data) / SK1.data[1]
 
-    return fidelity, entangle_spect[1:chi1^2] - entangle_spect1
+    return fidelity, entangle_spect[1:chi1^2], entangle_spect1
     
 end

@@ -13,15 +13,15 @@ using statmech_tm_solver
 T = cmpo_ising(1.0)
 ψ = cmps(T.Q, T.R)
 
-beta = 128
-Fexact = -1.2732475342538678 
+beta = 32
+Fexact = -1.273367385456538 
 conv_meas = 1e-4
 fidel=-1
 
 log_ovlp(ψ, ψ, beta)
 
 for chi in [2; 4; 8; 12; 16; 20; 24; 28; 32]
-    global conv_meas, fidel, conv_meas
+    global conv_meas, fidel, conv_meas, ψ
     @show chi
     for ix in 1:100
         Tψ = act(T, ψ)
@@ -58,4 +58,5 @@ for chi in [2; 4; 8; 12; 16; 20; 24; 28; 32]
         f = -(log_ovlp(ψ, act(T, ψ), beta) - log_ovlp(ψ, ψ, beta)) / beta |> real
     end
 
+    quicksave("ckpt_cMPO_ising_beta32_chi$(chi)", convert_to_tensormap(ψ))
 end
