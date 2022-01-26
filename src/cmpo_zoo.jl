@@ -1,4 +1,11 @@
-function cmpo_ising(Γ::Number)
+# collection of quantum models to be solved by continuous tensor network methods
+
+# cmpo representation for quantum models
+
+"""
+    cmpo_ising(Γ::Real)
+"""
+function cmpo_ising(Γ::Real)
     Q = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
     L = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^1, ℂ^2)
     R = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^1, ℂ^2)
@@ -14,6 +21,68 @@ function cmpo_ising(Γ::Number)
     return cmpo(Q, L, R, P)
 end
 
+"""
+    cmpo_xy()
+"""
+function cmpo_xy()
+    Q = zeros(ComplexF64, (2, 2))
+    L = zeros(ComplexF64, (2, 2, 2))
+    R = zeros(ComplexF64, (2, 2, 2))
+    P = zeros(ComplexF64, (2, 2, 2, 2))
+
+    σp = zeros(ComplexF64, (2, 2))
+    σm = zeros(ComplexF64, (2, 2))
+    σp[1, 2] = 1
+    σm[2, 1] = 1
+
+
+    L[:, 1, :] = σp
+    L[:, 2, :] = σm
+
+    R[:, 1, :] = σp 
+    R[:, 2, :] = σm
+
+    Q = convert_to_tensormap(Q, 1)
+    L = convert_to_tensormap(L, 2)
+    R = convert_to_tensormap(R, 2)
+    P = convert_to_tensormap(P, 2)
+
+    return cmpo(Q, L, R, P)
+end
+
+"""
+    cmpo_xz()
+"""
+function cmpo_xz()
+    Q = zeros(ComplexF64, (2, 2))
+    L = zeros(ComplexF64, (2, 2, 2))
+    R = zeros(ComplexF64, (2, 2, 2))
+    P = zeros(ComplexF64, (2, 2, 2, 2))
+
+    σx = zeros(ComplexF64, (2, 2))
+    σz = zeros(ComplexF64, (2, 2))
+    σx[1, 2] = 0.5
+    σx[2, 1] = 0.5
+    σz[1, 1] = 0.5
+    σz[2, 2] = -0.5
+
+    L[:, 1, :] = σx
+    L[:, 2, :] = σz
+
+    R[:, 1, :] = σx 
+    R[:, 2, :] = σz
+
+    Q = convert_to_tensormap(Q, 1)
+    L = convert_to_tensormap(L, 2)
+    R = convert_to_tensormap(R, 2)
+    P = convert_to_tensormap(P, 2)
+
+    return cmpo(Q, L, R, P)
+end
+
+"""
+    energy_quantum_ising(psi::TensorMap{ComplexSpace, 2, 1}, Γ::Number)
+"""
 function energy_quantum_ising(psi::TensorMap{ComplexSpace, 2, 1}, Γ::Number)
     σx = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
     σz = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
@@ -45,6 +114,9 @@ function energy_quantum_ising(psi::TensorMap{ComplexSpace, 2, 1}, Γ::Number)
     return (term_1site + term_2site)[1]
 end
 
+"""
+    cmpo_xxz(Δ::Number)
+"""
 function cmpo_xxz(Δ::Number)
     Q = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
     L = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^3, ℂ^2)
@@ -64,7 +136,10 @@ function cmpo_xxz(Δ::Number)
     return cmpo(Q, L, R, P)
 end
 
-function energy_quantum_xxz(psi::TensorMap{ComplexSpace, 2, 1}, Δ::Number)
+"""
+    energy_quantum_xxz(psi::TensorMap{ComplexSpace, 2, 1}, Δ::Real)
+"""
+function energy_quantum_xxz(psi::TensorMap{ComplexSpace, 2, 1}, Δ::Real)
     sx = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
     sy = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
     sz = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
@@ -97,7 +172,10 @@ function energy_quantum_xxz(psi::TensorMap{ComplexSpace, 2, 1}, Δ::Number)
     return result[1]
 end
 
-function cmpo_ising_realtime(Γ::Number)
+"""
+    cmpo_ising_realtime(Γ::Real)
+"""
+function cmpo_ising_realtime(Γ::Real)
     Q = TensorMap(zeros, ComplexF64, ℂ^2, ℂ^2)
     L = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^1, ℂ^2)
     R = TensorMap(zeros, ComplexF64, ℂ^2*ℂ^1, ℂ^2)
@@ -111,4 +189,48 @@ function cmpo_ising_realtime(Γ::Number)
     R[2, 1, 2] = -1.0 * (-1im)
 
     return cmpo(Q, L, R, P)
+end
+
+"""
+    energy_lieb_linger(ψ::cmps, c::Real, L::Real)
+
+    Calculate the energy density of Lieb Linger model for cMPS `ψ` with system size `L`.
+    `c` is the parameter in the Hamiltonian.
+    The Hamiltonian of Lieb Liniger model
+    ```
+        H = ∫dx [(dψ† / dx)(dψ / dx) + cψ†ψ†ψψ]
+    ```
+    Note L can be set to `Inf`, which means the thermodynamic limit.
+    """
+function energy_lieb_liniger(ψ::cmps, c::Real, L::Real)
+    Q, R = get_matrices(ψ)
+    χ = get_chi(ψ)
+    @tensor kinetic[-1, -2; -3, -4] := Q[-1, 1] * R[1, 3, -3] * Q'[2, -4] * R'[-2, 2, 3] +
+                                       R[-1, 3, 1] * Q[1, -3] * R'[2, -4, 3] * Q'[-2, 2] -
+                                       Q[-1, 1] * R[1, 3, -3] * R'[2, -4, 3] * Q'[-2, 2] - 
+                                       R[-1, 3, 1] * Q[1, -3] * Q'[2, -4] * R'[-2, 2, 3]
+    @tensor potential[-1, -2; -3, -4] := c * R[-1, 3, 1] * R[1, 4, -3] * R'[2, -4, 3] * R'[-2, 2, 4]
+    tensorE = kinetic + potential
+
+    E = NaN
+
+    if L == Inf # thermodynamic limit
+        lop = transf_mat(ψ, ψ)
+        lopT = transf_mat_T(ψ, ψ)
+        _, vR = eigsolve(lop, TensorMap(rand, ComplexF64, ℂ^χ, ℂ^χ), 1, :LR)
+        vR = vR[1]
+        _, vL = eigsolve(lopT, TensorMap(rand, ComplexF64, ℂ^χ, ℂ^χ), 1, :LR)
+        vL = vL[1]
+
+        @tensor E = vL'[4, 1] * tensorE[1, 2, 3, 4] * vR[3, 2]
+        E /= tr(vL' * vR)
+
+    elseif L > 0 # finite L
+        lop = K_mat(ψ, ψ)
+        env = finite_env(lop, L)
+        env = permute(env, (2, 3), (1, 4))
+        
+        @tensor E = env[4, 3, 2, 1] * tensorE[1, 2, 3, 4]
+    end
+    return real(E)
 end

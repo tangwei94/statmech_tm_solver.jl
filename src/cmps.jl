@@ -63,6 +63,29 @@ end
 @inline get_d(psi::cmps) = get_d(psi.R)
 
 """
+    get_matrices(psi::cmps) -> tuple 
+
+    return the Q and R matrices in cMPS `psi`. 
+    Q and R will be in the form of a tuple of `TensorMap`s. 
+"""
+get_matrices(psi::cmps) = (psi.Q, psi.R)
+
+"""
+    rrule(::typeof(get_matrices), psi::cmps)
+"""
+function rrule(::typeof(get_matrices), psi::cmps)
+    fwd = (psi.Q, psi.R) 
+    function get_Q_pushback(f̄wd)
+        (Q̄, R̄) = f̄wd
+        (Q̄ isa ZeroTangent) && (Q̄ = TensorMap(zeros, ComplexF64, space(psi.Q)))
+        (R̄ isa ZeroTangent) && (R̄ = TensorMap(zeros, ComplexF64, space(psi.R)))
+        p̄si = cmps(Q̄, R̄)
+        return NoTangent(), p̄si
+    end 
+    return fwd, get_Q_pushback
+end
+
+"""
     convert_to_cmps(arr::Array{<:Complex, 3})
 
     Convert a chi*(d+1)*chi array to a cMPS. 
@@ -305,7 +328,7 @@ end
 
         -1 -->--  phi' -->-- -3
                    |
-                   ^
+                 1 ^
                    |
         -2 --<--  psi  --<-- -4
 
@@ -343,18 +366,18 @@ function rrule(::typeof(K_mat), phi::cmps, psi::cmps)
 end
 
 """ 
-    log_ovlp(phi::cmps, psi::cmps, L::Real) -> ComplexF64
+    log_ovlp(phi::cmps, psi::cmps, beta::Real) -> ComplexF64
 
     Caculate the log of overlap for two finite uniform cmps `phi` and `psi`. 
-    `L` is the length of the uniform cmps. 
+    `beta` is the length of the uniform cmps. 
 """
-function log_ovlp(phi::cmps, psi::cmps, L::Real; sym::Bool=false)
+function log_ovlp(phi::cmps, psi::cmps, beta::Real; sym::Bool=false)
     t_trans = convert_to_array(K_mat(phi, psi))
     tot_dim = get_chi(phi) * get_chi(psi)
     t_trans = reshape(t_trans, (tot_dim, tot_dim))
     sym && (t_trans = Hermitian(0.5*(t_trans+t_trans')))
     w = eigvals(t_trans)
-    return logsumexp(L*w)
+    return logsumexp(beta*w)
 end
 
 """ 
@@ -366,7 +389,68 @@ function convergence_measure(T::cmpo, ψ::cmps, beta::Real)
 end
 
 """
+    finite_env(t::TensorMap{ComplexSpace}, L::Real)
+
+    For a cMPS transfer matrix `t` (see `K_mat`), calculate the environment block for the finite length `L`.
+    The input `t` matrix should look like 
+    ``` 
+        -1 -->--  phi' -->-- -3
+                   |
+                   ^
+                   |
+        -2 --<--  psi  --<-- -4
+    ```
+    This function will calculate exp(t) / tr(exp(t)) by diagonalizing `t`.
+"""
+function finite_env(t::TensorMap{ComplexSpace}, L::Real)
+    W, UR = eig(t)
+    UL = inv(UR)
+
+    Wvec = diag(W.data)
+    Wvec = Wvec .- logsumexp(Wvec * L) / L #normalize
+    expW = convert_to_tensormap(diagm(exp.(Wvec * L)), 1)
+   
+    return UR * expW * UL
+end
+
+"""
+    rrule(::typeof(finite_env), t::TensorMap{ComplexSpace}, L::Real)
+
+    Backward rule for `finite_env`.
+    See https://math.stackexchange.com/a/3868894/488003 and https://doi.org/10.1006/aama.1995.1017 for the gradient of exp(t)
+"""
+function rrule(::typeof(finite_env), t::TensorMap{ComplexSpace}, L::Real)
+    W, UR = eig(t)
+    UL = inv(UR)
+
+    Wvec = diag(W.data)
+    Wvec = Wvec .- logsumexp(Wvec * L) / L #normalize
+    expW = convert_to_tensormap(diagm(exp.(Wvec * L)), 1)
+    fwd = UR * expW * UL
+
+    function finite_env_pushback(f̄wd)
+        function coeff(a::Number, b::Number) 
+            if a ≈ b
+                return L*exp(a*L)
+            else 
+                return (exp(a*L) - exp(b*L)) / (a - b)
+            end
+        end
+        M = UR' * f̄wd * UL'
+        M1 = similar(M)
+        copyto!(M1.data, M.data .* coeff.(Wvec', conj.(Wvec)))
+        t̄ = UL' * M1 * UR' - L * tr(f̄wd * fwd') * fwd'
+        
+        return NoTangent(), t̄, NoTangent()
+    end 
+    return fwd, finite_env_pushback
+end
+
+
+"""
     optimize_conv_meas(T::cmpo, ψ::cmps, beta::Real)
+
+    Optimize the convergence measure by gradient optimization. 
 """
 function optimize_conv_meas(T::cmpo, ψ::cmps, beta::Real, Niter::Integer)
     ψarr = convert_to_array(ψ)
@@ -381,6 +465,20 @@ function optimize_conv_meas(T::cmpo, ψ::cmps, beta::Real, Niter::Integer)
 
     res = optimize(_f, _g!, ψarr, Optim.Options(show_trace=false, iterations=Niter))
     return convert_to_cmps(Optim.minimizer(res))
+end
+
+
+"""
+    normalize(psi::cmps, beta::Real)
+
+    Normalize the given cmps `psi`. 
+"""
+function normalize(psi::cmps, beta::Real)
+    log_psi_norm = log_ovlp(psi, psi, beta; sym=true)
+    id_psi = id(ℂ^(get_chi(psi)))
+    @show log_psi_norm
+    Q = psi.Q - log_psi_norm / beta / 2  * id_psi
+    return cmps(Q, psi.R)
 end
 
 """
@@ -434,10 +532,13 @@ function compress(ψ::cmps, chi::Integer, beta::Real; Niter::Integer=100, tol::R
         res = optimize(_f, _g!, convert_to_array(ϕ), LBFGS(), Optim.Options(show_trace=false, iterations=Niter, f_abstol=tol))
         ϕ = convert_to_cmps(Optim.minimizer(res))
     end
-    log_fidel = 2*log_ovlp(ϕ, ψ, beta) - log_ovlp(ϕ, ϕ, beta) - log_norm_ψ * beta |> real
+    ϕ = normalize(ϕ, beta)
+
+    log_fidel = 2*log_ovlp(ϕ, ψ, beta) - log_norm_ψ * beta |> real
     status = (log_fidel > -tol)
     return status, log_fidel, ϕ
 end
+
 """
     truncation_measure(psi::cmps, psi1::cmps, beta::Real)
 

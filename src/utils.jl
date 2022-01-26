@@ -94,13 +94,56 @@ end
 """
     logsumexp(w)
 
-Calculation of logsumexp.
+    Calculation of logsumexp.
 """
 function logsumexp(w::Array{<:Number, 1})
     u = maximum(norm.(w))
-    t = 0.0
-    for i = 1:length(w)
-        t += exp(w[i]-u)
+    return u + log(sum(exp.(w .- u)))
+end
+
+"""
+    rrule(::typeof(logsumexp), w::Array{<:Number, 1})
+
+    Backwards rule for logsumexp. 
+    I did this because it seems Zygote's automatic backwards will fail at `maximum(norm.(w))` in the case of complex numbers. 
+"""
+function rrule(::typeof(logsumexp), w::Array{<:Number, 1})
+    u = maximum(norm.(w))
+    expw = exp.(w .- u)
+    fwd = u + log(sum(expw))
+
+    function logsumexp_pushback(f̄wd)
+        w̄ = f̄wd * conj(expw / sum(expw))
+        return NoTangent(), w̄
     end
-    u + log(t)
+    return fwd, logsumexp_pushback
+end
+
+# FIXME. seems buggy 
+function tmp_eig(t::TensorMap{ComplexSpace})
+    tarr = convert_to_array(t)
+    dom = domain(t)
+    Wdim = dom |> dims |> prod
+    tarr = reshape(tarr, (Wdim, Wdim))
+
+    Warr, Varr = eigen(tarr)
+    Warr = diagm(Warr)
+
+    W = convert_to_tensormap(Warr, 1)
+    V = TensorMap(Varr, dom, ℂ^Wdim)
+
+    return W, V
+end
+
+# FIXME. seems buggy
+function tmp_inv(t::TensorMap{ComplexSpace})
+    tarr = convert_to_array(t)
+    dom = domain(t)
+    codom = codomain(t)
+    tdim = dom |> dims |> prod
+    tarr = reshape(tarr, (tdim, tdim))
+
+    tinv_arr = inv(tarr)
+    tinv = TensorMap(tinv_arr, dom, codom)
+    return tinv
 end

@@ -10,17 +10,17 @@ using Optim
 using Revise
 using statmech_tm_solver
 
-T = cmpo_ising(1.0)
+T = cmpo_xz()
 ψ = cmps(T.Q, T.R)
 
-beta = 32
-Fexact = -1.273367385456538 
-conv_meas = 1e-4
+beta = 16
+Fexact = -0.32036477338588226
+conv_meas = 1e-3
 fidel=-1
 
 log_ovlp(ψ, ψ, beta)
 
-for chi in [2; 4; 8; 12; 16; 20; 24; 28; 32]
+for chi in [36]
     global conv_meas, fidel, conv_meas, ψ
     @show chi
     for ix in 1:100
@@ -58,5 +58,5 @@ for chi in [2; 4; 8; 12; 16; 20; 24; 28; 32]
         f = -(log_ovlp(ψ, act(T, ψ), beta) - log_ovlp(ψ, ψ, beta)) / beta |> real
     end
 
-    quicksave("ckpt_cMPO_ising_beta32_chi$(chi)", convert_to_tensormap(ψ))
+    quicksave("ckpt_cMPO_xy_beta$(beta)_chi$(chi)", convert_to_tensormap(ψ))
 end

@@ -1,3 +1,15 @@
+@timedtestset "test get_matrices rrule" for ix in 1:10
+    ψ_arr = rand(ComplexF64, (8, 8, 8))
+
+    function f(arr::Array{ComplexF64, 3})
+        ψ = convert_to_cmps(arr)
+        Q, R = get_matrices(ψ)
+        return norm(get_matrices(ψ)[1]) + norm(get_matrices(ψ)[2])
+    end
+    
+    @test f'(ψ_arr) ≈ FiniteDifferences.grad(central_fdm(5, 1), f, ψ_arr)[1]
+end
+
 @timedtestset "test transf_mat and transf_mat_T" for ix in 1:10
     ψ = cmps(rand, 8, 12)
     ϕ = cmps(rand, 9, 12)
@@ -133,4 +145,49 @@ end
     end
     @test f2'(ψ_arr) ≈ FiniteDifferences.grad(central_fdm(5, 1), f2, ψ_arr)[1]
 
+end
+
+# test finite_env and its rrule
+@timedtestset "test finite_env and its rrule" for ix in 1:10
+    ψ = cmps(rand, 6, 6)
+    K = K_mat(ψ, ψ)
+    L = rand()
+    @test finite_env(K, L) ≈ exp(L*K) / tr(exp(L*K))
+
+    # test rrule
+    ψ_arr = rand(ComplexF64, (3, 4, 3))
+    ϕ_arr = rand(ComplexF64, (4, 4, 4))
+    O = TensorMap(rand, ComplexF64, (ℂ^3)'*ℂ^4, (ℂ^3)'*ℂ^4)
+
+    function f1(arr::Array{<:Complex})
+        ψ = convert_to_cmps(arr)
+        ϕ = convert_to_cmps(ϕ_arr)
+        K = K_mat(ψ, ϕ)
+        return tr(finite_env(K, L) * O) |> real
+    end
+
+    function f2(arr::Array{<:Complex})
+        ψ = convert_to_cmps(arr)
+        ϕ = convert_to_cmps(ϕ_arr)
+        K = K_mat(ψ, ϕ)
+        return norm(finite_env(K, L))
+    end
+    
+    function f3(arr::Array{<:Complex})
+        ψ = convert_to_cmps(arr)
+        K = K_mat(ψ, ψ)
+        return tr(finite_env(K, L) * K) |> real
+    end
+
+    @test f1'(ψ_arr) ≈ FiniteDifferences.grad(central_fdm(5, 1), f1, ψ_arr)[1]
+    @test f2'(ψ_arr) ≈ FiniteDifferences.grad(central_fdm(5, 1), f2, ψ_arr)[1]
+    @test f3'(ψ_arr) ≈ FiniteDifferences.grad(central_fdm(5, 1), f3, ψ_arr)[1]
+end
+
+# test normalization
+@timedtestset "finite periodic cmps normalization" for ix in 1:10
+    ψ = cmps(rand, 8, 8)
+    ψ1 = normalize(ψ, 12)
+
+    @test log_ovlp(ψ1, ψ1, 12; sym=true) < 1e-12
 end
