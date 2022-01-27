@@ -198,39 +198,20 @@ end
     `c` is the parameter in the Hamiltonian.
     The Hamiltonian of Lieb Liniger model
     ```
-        H = ∫dx [(dψ† / dx)(dψ / dx) + cψ†ψ†ψψ]
+        H = ∫dx [(dψ† / dx)(dψ / dx) + cψ†ψ†ψψ - μψ†ψ]
     ```
     Note L can be set to `Inf`, which means the thermodynamic limit.
-    """
-function energy_lieb_liniger(ψ::cmps, c::Real, L::Real)
-    Q, R = get_matrices(ψ)
-    χ = get_chi(ψ)
-    @tensor kinetic[-1, -2; -3, -4] := Q[-1, 1] * R[1, 3, -3] * Q'[2, -4] * R'[-2, 2, 3] +
-                                       R[-1, 3, 1] * Q[1, -3] * R'[2, -4, 3] * Q'[-2, 2] -
-                                       Q[-1, 1] * R[1, 3, -3] * R'[2, -4, 3] * Q'[-2, 2] - 
-                                       R[-1, 3, 1] * Q[1, -3] * Q'[2, -4] * R'[-2, 2, 3]
-    @tensor potential[-1, -2; -3, -4] := c * R[-1, 3, 1] * R[1, 4, -3] * R'[2, -4, 3] * R'[-2, 2, 4]
-    tensorE = kinetic + potential
+"""
+function energy_lieb_liniger(ψ::cmps, c::Real, L::Real, μ::Real)
+    tensorK = kinetic(ψ)
+    tensorD = particle_density(ψ)
+    tensorP = point_interaction(ψ)
+    tensorE = tensorK + c * tensorP - μ * tensorD
 
-    E = NaN
-
-    if L == Inf # thermodynamic limit
-        lop = transf_mat(ψ, ψ)
-        lopT = transf_mat_T(ψ, ψ)
-        _, vR = eigsolve(lop, TensorMap(rand, ComplexF64, ℂ^χ, ℂ^χ), 1, :LR)
-        vR = vR[1]
-        _, vL = eigsolve(lopT, TensorMap(rand, ComplexF64, ℂ^χ, ℂ^χ), 1, :LR)
-        vL = vL[1]
-
-        @tensor E = vL'[4, 1] * tensorE[1, 2, 3, 4] * vR[3, 2]
-        E /= tr(vL' * vR)
-
-    elseif L > 0 # finite L
-        lop = K_mat(ψ, ψ)
-        env = finite_env(lop, L)
-        env = permute(env, (2, 3), (1, 4))
+    # calculate environment
+    lop = K_mat(ψ, ψ)
+    env = finite_env(lop, L)
+    env = permute(env, (2, 3), (4, 1))
         
-        @tensor E = env[4, 3, 2, 1] * tensorE[1, 2, 3, 4]
-    end
-    return real(E)
+    return real(tr(env * tensorE))
 end

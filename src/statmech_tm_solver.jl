@@ -79,6 +79,9 @@ export  cmps,
         log_ovlp,
         convergence_measure,
         finite_env,
+        kinetic,
+        particle_density,
+        point_interaction,
         optimize_conv_meas,
         compress,
         truncation_check
@@ -97,7 +100,8 @@ export  cmpo_ising,
 export  qbimps
 
 # TensorKitAD_supp.jl
-export convert_to_array
+export  convert_to_array,
+        elem_mult
 
 include("imps.jl")
 include("utils.jl")

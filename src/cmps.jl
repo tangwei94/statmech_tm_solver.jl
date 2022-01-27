@@ -446,6 +446,74 @@ function rrule(::typeof(finite_env), t::TensorMap{ComplexSpace}, L::Real)
     return fwd, finite_env_pushback
 end
 
+#"""
+#    observe(O::TensorMap{ComplexSpace, 2, 2}, env::TensorMap{ComplexSpace, 2, 2}) -> Number 
+#
+#    Calculate the local observable `O` for a cMPS `ψ` with length `L`.
+#    The indices for `O` and `env` should be ordered as:
+#    ```
+#        -4 -->--- --->-- -2
+#                 |
+#               O or env  
+#                 |
+#        -1 --<--- ---<-- -3
+#
+#    ```
+#"""
+#function observe(O::TensorMap{ComplexSpace, 2, 2}, env::TensorMap{ComplexSpace, 2, 2})
+#    #if L == Inf # thermodynamic limit
+#    #    lop = transf_mat(ψ, ψ)
+#    #    lopT = transf_mat_T(ψ, ψ)
+#    #    _, vR = eigsolve(lop, TensorMap(rand, ComplexF64, ℂ^χ, ℂ^χ), 1, :LR)
+#    #    vR = vR[1]
+#    #    _, vL = eigsolve(lopT, TensorMap(rand, ComplexF64, ℂ^χ, ℂ^χ), 1, :LR)
+#    #    vL = vL[1]
+#
+#    #    @tensor E = vL'[4, 1] * tensorE[1, 2, 3, 4] * vR[3, 2]
+#    #    E /= tr(vL' * vR)
+#    #end
+#
+#    # expectation value
+#    @tensor E = env[4, 3, 1, 2] * O[1, 2, 4, 3]
+#
+#    return E
+#end
+
+"""
+    kinetic(ψ::cmps) -> TensorMap{ComplexSpace, 2, 2}
+
+    Construct the tensor for kinetic energy density `(dψ† / dx)(dψ / dx)` measurement (see `observe`).
+"""
+function kinetic(ψ::cmps) 
+    Q, R = get_matrices(ψ)
+    @tensor O[-1, -2; -3, -4] := Q[-1, 1] * R[1, 3, -3] * Q'[2, -4] * R'[-2, 2, 3] +
+                                       R[-1, 3, 1] * Q[1, -3] * R'[2, -4, 3] * Q'[-2, 2] -
+                                       Q[-1, 1] * R[1, 3, -3] * R'[2, -4, 3] * Q'[-2, 2] - 
+                                       R[-1, 3, 1] * Q[1, -3] * Q'[2, -4] * R'[-2, 2, 3]
+    return O
+end
+
+"""
+    density(ψ::cmps) -> TensorMap{ComplexSpace, 2, 2}
+
+    Construct the tensor for particle density `ψ†ψ` measurement (see `observe`).
+"""
+function particle_density(ψ::cmps) 
+    _, R = get_matrices(ψ)
+    @tensor O[-1, -2; -3, -4] := R[-1, 1, -3] * R'[-2, -4, 1]
+    return O
+end
+
+"""
+    point_interaction(ψ::cmps) -> TensorMap{ComplexSpace, 2, 2}
+
+    Construct the tensor for point interaction potential `ψ†ψ†ψψ` measurement (see `observe`). 
+"""
+function point_interaction(ψ::cmps)
+    _, R = get_matrices(ψ)
+    @tensor O[-1, -2; -3, -4] := R[-1, 3, 1] * R[1, 4, -3] * R'[2, -4, 3] * R'[-2, 2, 4]
+    return O
+end
 
 """
     optimize_conv_meas(T::cmpo, ψ::cmps, beta::Real)
