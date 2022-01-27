@@ -49,3 +49,37 @@ function rrule(::typeof(tr), A::TensorMap)
     end 
     return fwd, tr_pushback
 end
+
+"""
+    elem_mult(a::AbstractTensorMap,b::AbstractTensorMap)
+
+    Element-wise multiplication between TensorMaps.
+"""
+function elem_mult(a::AbstractTensorMap,b::AbstractTensorMap)
+    dst = similar(a);
+    for (k,block) in blocks(dst)
+        copyto!(block,blocks(a)[k].*blocks(b)[k]);
+    end
+    dst
+end
+
+"""
+    rrule(::typeof(elem_mult), a::AbstractTensorMap, b::AbstractTensorMap)
+"""
+function rrule(::typeof(elem_mult), a::AbstractTensorMap, b::AbstractTensorMap)
+    fwd = similar(a);
+    for (k,block) in blocks(fwd)
+        copyto!(block,blocks(a)[k].*blocks(b)[k]);
+    end
+    
+    function elem_mult_pushback(f̄wd)
+        ā, b̄ = similar(a), similar(b)
+        for (k, block) in blocks(f̄wd)
+            copyto!(blocks(ā)[k], block .* conj.(blocks(b)[k]))
+            copyto!(blocks(b̄)[k], block .* conj.(blocks(a)[k]))
+        end
+
+        return NoTangent(), ā, b̄
+    end 
+    return fwd, elem_mult_pushback
+end
