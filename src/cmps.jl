@@ -772,17 +772,28 @@ function tangent_map(ψ::cmps, L::Real)
     return f
 end
 
-mutable struct linearop 
+mutable struct preconditioner 
     map::Function
     proj::AbstractTensorMap
 end
 
 """
-    precond_grad(P::linearop, ψgrad_arr::Array{ComplexF64, 3}) -> Array{ComplexF64, 3}
+    preconditioner(ψ::cmps, L::Real)
+    
+    construct the preconditioner for cmps `ψ` of length `L`.
+"""
+function preconditioner(ψ::cmps, L::Real)
+    map = tangent_map(ψ, L)
+    proj = gauge_fixing_proj(ψ, L)
+    return preconditioner(map, proj)
+end
+
+"""
+    precond_grad(P::preconditioner, ψgrad_arr::Array{ComplexF64, 3}) -> Array{ComplexF64, 3}
 
     Act the preconditioner on the gradient. 
 """
-function precond_grad(P::linearop, ψgrad_arr::Array{ComplexF64, 3})
+function precond_grad(P::preconditioner, ψgrad_arr::Array{ComplexF64, 3})
 
     χ = size(ψgrad_arr)[1]
     d = size(ψgrad_arr)[2] - 1  
@@ -803,12 +814,12 @@ function precond_grad(P::linearop, ψgrad_arr::Array{ComplexF64, 3})
 end
 
 """
-    dot(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
+    dot(x::Array{ComplexF64, 3}, P::preconditioner, y::Array{ComplexF64, 3})
 
     util function for Optim.jl preconditioner. 
     calculates the inner product <x, P*y> 
 """
-function dot(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
+function dot(x::Array{ComplexF64, 3}, P::preconditioner, y::Array{ComplexF64, 3})
     x_tnmap = convert_to_tensormap(x, 2)
     y_tnmap = convert_to_tensormap(y, 2)
 
@@ -817,11 +828,11 @@ function dot(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
 end
 
 """
-    ldiv!(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
+    ldiv!(x::Array{ComplexF64, 3}, P::preconditioner, y::Array{ComplexF64, 3})
 
     util function for Optim.jl preconditioner.
     copy inv(P)*y to x.
 """
-function ldiv!(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
+function ldiv!(x::Array{ComplexF64, 3}, P::preconditioner, y::Array{ComplexF64, 3})
     copyto!(x, precond_grad(P, y))
 end

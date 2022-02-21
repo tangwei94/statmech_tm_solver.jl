@@ -88,7 +88,7 @@ export  cmps,
         truncation_check,
         gauge_fixing_proj,
         tangent_map,
-        linearop,
+        preconditioner,
         precond_grad
 
 # cmpo_zoo.jl

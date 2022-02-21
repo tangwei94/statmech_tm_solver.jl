@@ -59,18 +59,14 @@ tr(env * op_k)
 # now we test the performance of the preconditioner
 
 # construct the preconditioner
-function _precondprep!(P::linearop, ψ_arr::Array{ComplexF64, 3})
+function _precondprep!(P::preconditioner, ψ_arr::Array{ComplexF64, 3})
     ψ = convert_to_cmps(ψ_arr)
     P.map = tangent_map(ψ, L)
     P.proj = gauge_fixing_proj(ψ, L)
 end
 
-P0 = linearop(tangent_map(ψm, L), gauge_fixing_proj(ψm, L)) 
-ψm_arr
-ψ1_arr = similar(ψm_arr)
-
 # use preconditioned LBFGS, optimize the energy for additional 50 steps
-P0 = linearop(tangent_map(ψm, L), gauge_fixing_proj(ψm, L)) 
+P0 = preconditioner(ψm, L)
 res1 = optimize(f, g!, ψm_arr, LBFGS(P = P0, precondprep=_precondprep!), Optim.Options(show_trace=true, iterations=50))
 ψm1 = convert_to_cmps(Optim.minimizer(res1));
 E1 = energy_lieb_liniger(ψm1, c, L, μ)
@@ -82,16 +78,19 @@ res2 = optimize(f, g!, ψm_arr, LBFGS(), Optim.Options(show_trace=true, iteratio
 E2 = energy_lieb_liniger(ψm2, c, L, μ)
 @show E2 - E
 
-# from original random init guess, 50 steps of ordinary LBFGS + 50 steps of preconditioned GradientDescent + 200 steps of preconditioned LBFGS
-res3 = optimize(f, g!, ψ_arr, LBFGS(), Optim.Options(show_trace=true, iterations=50))
+# from original random init guess, 100 steps of ordinary LBFGS + 100 steps of preconditioned GradientDescent + 100 steps of preconditioned LBFGS
+res3 = optimize(f, g!, ψ_arr, LBFGS(), Optim.Options(show_trace=true, iterations=100))
 ψ3_arr = Optim.minimizer(res3)
 ψm3 = convert_to_cmps(ψ3_arr)
-P0 = linearop(tangent_map(ψm3, L), gauge_fixing_proj(ψm3, L)) 
-res3 = optimize(f, g!, ψ3_arr, GradientDescent(P = P0, precondprep=_precondprep!), Optim.Options(show_trace=true, iterations=50))
+
+P0 = preconditioner(ψm3, L)
+res3 = optimize(f, g!, ψ3_arr, GradientDescent(P = P0, precondprep=_precondprep!), Optim.Options(show_trace=true, iterations=100))
 ψ3_arr = Optim.minimizer(res3)
 ψm3 = convert_to_cmps(ψ3_arr)
-P0 = linearop(tangent_map(ψm3, L), gauge_fixing_proj(ψm3, L)) 
-res3 = optimize(f, g!, ψ3_arr, LBFGS(P = P0, precondprep=_precondprep!), Optim.Options(show_trace=true, iterations=200))
+
+P0 = preconditioner(ψm3, L)
+res3 = optimize(f, g!, ψ3_arr, LBFGS(P = P0, precondprep=_precondprep!), Optim.Options(show_trace=true, iterations=100))
 ψm3 = convert_to_cmps(Optim.minimizer(res3));
+
 E3 = energy_lieb_liniger(ψm3, c, L, μ)
 @show E3 - E
