@@ -18,7 +18,7 @@ using ChainRulesCore
 import ChainRulesCore: rrule, frule
 import Base: +, -, *, iterate, length, getindex, similar
 import TensorKit: leftorth, rightorth
-import LinearAlgebra: normalize
+import LinearAlgebra: normalize, dot, ldiv!
 
 # imps.jl
 export  act,
@@ -81,10 +81,15 @@ export  cmps,
         finite_env,
         kinetic,
         particle_density,
+        pairing,
         point_interaction,
         optimize_conv_meas,
         compress,
-        truncation_check
+        truncation_check,
+        gauge_fixing_proj,
+        tangent_map,
+        linearop,
+        precond_grad
 
 # cmpo_zoo.jl
 export  cmpo_ising,
@@ -94,7 +99,8 @@ export  cmpo_ising,
         cmpo_xxz,
         energy_quantum_xxz,
         cmpo_ising_realtime,
-        energy_lieb_liniger
+        energy_lieb_liniger,
+        energy_pairing_boson
 
 # bi_direction_q.jl
 export  qbimps

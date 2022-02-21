@@ -98,6 +98,23 @@ function convert_to_cmps(arr::Array{<:Complex, 3})
 end
 
 """
+    convert_to_cmps(arr::Array{<:Complex, 1}, χ::Integer, d::Integer)
+
+    Convert a vector to a left-canonical cMPS.
+    ```
+    Q = - R†R / 2 - i D
+    ```
+    where `D` is a real diagonal matrix.
+"""
+function convert_to_cmps(arr::Array{<:Complex, 1}, χ::Integer, d::Integer)
+    D = diagm(real(arr[1:χ]))
+    R = reshape(arr[χ+1:end], (χ*d, χ))
+    Q = -0.5 * R' * R - 1im * D
+    ψ_arr = reshape([Q; R], (χ, d+1, χ))
+    return convert_to_cmps(ψ_arr)
+end
+
+"""
     convert_to_cmps(arr::TensorMap{ComplexSpace, 2, 1})
     
     Convert a ℂ^chi*ℂ^(d+1) ← ℂ^chi TensorMap to a cMPS. 
@@ -401,6 +418,7 @@ end
         -2 --<--  psi  --<-- -4
     ```
     This function will calculate exp(t) / tr(exp(t)) by diagonalizing `t`.
+    To make the indexing consistent with the arrows in the result, we can permute `res` as `permute(res, (2, 3), (4, 1))` .
 """
 function finite_env(t::TensorMap{ComplexSpace}, L::Real)
     W, UR = eig(t)
@@ -482,7 +500,7 @@ end
 """
     kinetic(ψ::cmps) -> TensorMap{ComplexSpace, 2, 2}
 
-    Construct the tensor for kinetic energy density `(dψ† / dx)(dψ / dx)` measurement (see `observe`).
+    Construct the tensor for kinetic energy density `(dψ† / dx)(dψ / dx)` measurement.
 """
 function kinetic(ψ::cmps) 
     Q, R = get_matrices(ψ)
@@ -496,7 +514,7 @@ end
 """
     density(ψ::cmps) -> TensorMap{ComplexSpace, 2, 2}
 
-    Construct the tensor for particle density `ψ†ψ` measurement (see `observe`).
+    Construct the tensor for particle density `ψ†ψ` measurement.
 """
 function particle_density(ψ::cmps) 
     _, R = get_matrices(ψ)
@@ -507,11 +525,36 @@ end
 """
     point_interaction(ψ::cmps) -> TensorMap{ComplexSpace, 2, 2}
 
-    Construct the tensor for point interaction potential `ψ†ψ†ψψ` measurement (see `observe`). 
+    Construct the tensor for point interaction potential `ψ†ψ†ψψ` measurement. 
 """
 function point_interaction(ψ::cmps)
     _, R = get_matrices(ψ)
     @tensor O[-1, -2; -3, -4] := R[-1, 3, 1] * R[1, 4, -3] * R'[2, -4, 3] * R'[-2, 2, 4]
+    return O
+end
+
+"""
+    build_I_R(ψ::cmps) -> TensorMap{ComplexSpace, 2, 1}
+"""
+function build_I_R(ψ::cmps)
+    χ, d = get_chi(ψ), get_d(ψ)
+    I_R = zeros(ComplexF64, (χ, d, χ))
+    for ix in 1:d
+        I_R[:, ix, :] = Matrix{ComplexF64}(I, (χ, χ))
+    end 
+    I_R = convert_to_tensormap(I_R, 2)
+end
+
+@non_differentiable build_I_R(ψ::cmps)
+
+"""
+    pairing(ψ::cmps) -> TensorMap{ComplexSpace, 2, 2}
+"""
+function pairing(ψ::cmps)
+    _, R = get_matrices(ψ)
+    I_R = build_I_R(ψ)
+    @tensor O[-1, -2; -3, -4] := R[-1, 3, 1] * R[1, 4, -3] * I_R'[2, -4, 3] * I_R'[-2, 2, 4] +
+                                I_R[-1, 3, 1] * I_R[1, 4, -3] * R'[2, -4, 3] * R'[-2, 2, 4]
     return O
 end
 
@@ -541,10 +584,10 @@ end
 
     Normalize the given cmps `psi`. 
 """
-function normalize(psi::cmps, beta::Real)
-    log_psi_norm = log_ovlp(psi, psi, beta; sym=true)
+function normalize(psi::cmps, beta::Real; sym=true)
+    log_psi_norm = log_ovlp(psi, psi, beta; sym=sym)
     id_psi = id(ℂ^(get_chi(psi)))
-    @show log_psi_norm
+    #@show log_psi_norm
     Q = psi.Q - log_psi_norm / beta / 2  * id_psi
     return cmps(Q, psi.R)
 end
@@ -643,4 +686,142 @@ function truncation_check(psi::cmps, psi1::cmps, beta::Real)
 
     return fidelity, entangle_spect[1:chi1^2], entangle_spect1
     
+end
+
+"""
+    gauge_fixing_proj(ψ::cmps, L::Real) -> proj::TensorMap 
+
+    Fix the gauge for a tangent vector tensor. 
+    This function generates a projector `proj` that can be used to
+    - parametrize a fixed-gauge tangent vector
+    - eleminate the gauge degrees of freedom in an existing tangent vector
+"""
+function gauge_fixing_proj(ψ::cmps, L::Real)
+    # density matrix ρ
+    K = K_mat(ψ, ψ)
+    ρ = finite_env(K, L)
+    ρ = permute(ρ, (2, 3), (4, 1))
+   
+    # A tensor that is connected to impurity tensor in the tangent vector
+    A = cmps(id(ℂ^get_chi(ψ)), copy(ψ.R))
+    A = convert_to_tensormap(A)
+
+    # construct the projector
+    @tensor Aρ[-1, ; -2, -3] := ρ[-1, 1, -2, 2] * A'[2, 1, -3]
+    proj = rightnull(Aρ)'
+
+    return proj
+end
+
+"""
+    tangent_map(ψ::cmps, L::Real) -> Function
+
+    tangent map. act on the parameter space obtained after gauge elimination. 
+"""
+function tangent_map(ψ::cmps, L::Real)
+
+    χ, d = get_chi(ψ), get_d(ψ)
+
+    # diagonalize K matrix, normalize W according to length
+    K = K_mat(ψ, ψ)
+    W, UR = eig(K)
+    UL = inv(UR)
+
+    # gauge fixing projector
+    proj = gauge_fixing_proj(ψ, L)    
+
+    # calculate coefficient matrix  
+    coeffW = similar(W)
+    Wvec = diag(W.data)
+    normψ = logsumexp(L .* Wvec)
+    Wvec .-= normψ / L
+    function coeff(a::Number, b::Number) 
+        if a' ≈ b
+            return L*exp(a'*L)
+        else 
+            return (exp(a'*L) - exp(b*L)) / (a' - b)
+        end
+    end
+    copyto!(coeffW.data, coeff.(Wvec', Wvec))
+
+    # A tensor that is connected to G
+    A = cmps(id(ℂ^get_chi(ψ)), copy(ψ.R))
+    A = convert_to_tensormap(A)
+
+    D = id(ℂ^(d+1))
+    D.data[1] = 0
+
+    idW = id(ℂ^(χ^2))
+
+    # calculate the map
+    function f(V::TensorMap{ComplexSpace, 1, 1})
+        # crossing term
+        @tensor M0[-1, -2; -3, -4] := V[1, -4] * proj[-2, 2, 1] * A'[-3, -1, 2]
+        M = UL * M0 * UR
+        M = elem_mult(M, coeffW)
+        M = UR * M * UL
+        M = permute(M, (2, 3), (4, 1))
+        @tensor Vc[-1; -2] := M[1, 3, 2, -2] * A[2, 4, 1] * proj'[-1, 3, 4] 
+        # diagonal term
+        ρ = UR * exp(W*L - idW*normψ) * UL 
+        ρ = permute(ρ, (2, 3), (4, 1))
+        @tensor Vd[-1; -2] := ρ[3, 5, 2, -2] * proj[2, 4, 1] * V[1, 3] * D[6, 4] * proj'[-1, 5, 6]
+        return L*(Vc + Vd) 
+    end
+
+    return f
+end
+
+mutable struct linearop 
+    map::Function
+    proj::AbstractTensorMap
+end
+
+"""
+    precond_grad(P::linearop, ψgrad_arr::Array{ComplexF64, 3}) -> Array{ComplexF64, 3}
+
+    Act the preconditioner on the gradient. 
+"""
+function precond_grad(P::linearop, ψgrad_arr::Array{ComplexF64, 3})
+
+    χ = size(ψgrad_arr)[1]
+    d = size(ψgrad_arr)[2] - 1  
+
+    # modulate tangent map: P.map -> P.map + δ * id
+    V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
+    δ = norm(P.map(V)) / norm(V) * 1e-4#; @show δ
+    f = (V -> P.map(V) + δ * V )
+
+    # project out gauge freedoms
+    G = convert_to_tensormap(ψgrad_arr, 2)
+    VG = P.proj' * G
+
+    # inverse of the metric
+    VG1 = linsolve(f, VG, VG)[1]
+    G1 = P.proj * VG1 
+    return convert_to_array(G1)
+end
+
+"""
+    dot(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
+
+    util function for Optim.jl preconditioner. 
+    calculates the inner product <x, P*y> 
+"""
+function dot(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
+    x_tnmap = convert_to_tensormap(x, 2)
+    y_tnmap = convert_to_tensormap(y, 2)
+
+    Py = P.proj * P.map(P.proj' * y_tnmap)
+    return tr(x_tnmap' * Py) 
+end
+
+"""
+    ldiv!(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
+
+    util function for Optim.jl preconditioner.
+    copy inv(P)*y to x.
+"""
+function ldiv!(x::Array{ComplexF64, 3}, P::linearop, y::Array{ComplexF64, 3})
+    copyto!(x, precond_grad(P, y))
 end

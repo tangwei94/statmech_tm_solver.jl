@@ -53,7 +53,7 @@ end
 """
     elem_mult(a::AbstractTensorMap,b::AbstractTensorMap)
 
-    Element-wise multiplication between TensorMaps.
+    Element-wise multiplication between TensorMaps. Copied from TensorKitAD.jl.
 """
 function elem_mult(a::AbstractTensorMap,b::AbstractTensorMap)
     dst = similar(a);

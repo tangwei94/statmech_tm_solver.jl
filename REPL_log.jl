@@ -16,28 +16,11 @@ using ChainRulesCore
 using Revise
 using statmech_tm_solver
 
-ψ = cmps(rand, 4, 2)
 
+#########################################################
 
+f1 = p -> (sqrt((p^2 - μ)^2 - 4 * ν^2) - (p^2 - μ)) / 2
 
-c = 1
-μ = 1
-L = 1000
-function f(arr::Array{ComplexF64, 3})
-    ψ = convert_to_cmps(arr)
-    return energy_lieb_liniger(ψ, c, L, μ)
-end
+Eexact = map(f1, (-100000:100000) .* 2*pi/L ) .* (1 / L) |> sum
 
-function g!(garr::Array{ComplexF64, 3}, arr::Array{ComplexF64, 3})
-    garr .= f'(arr)
-end
-
-res = optimize(f, g!, ψ_arr, LBFGS(), Optim.Options(show_trace=true, iterations=100))
-ψm = convert_to_cmps(Optim.minimizer(res));
-
-E = energy_lieb_liniger(ψm, c, L, μ)
-env = finite_env(K_mat(ψm, ψm), L)
-env = permute(env, (2, 3), (4, 1))
-
-op_ρ = particle_density(ψm)
-tr(env * op_ρ)
+@show (E - Eexact) / Eexact

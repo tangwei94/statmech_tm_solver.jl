@@ -97,7 +97,7 @@ end
     Calculation of logsumexp.
 """
 function logsumexp(w::Array{<:Number, 1})
-    u = maximum(norm.(w))
+    u = maximum(real.(w))
     return u + log(sum(exp.(w .- u)))
 end
 
@@ -108,7 +108,7 @@ end
     I did this because it seems Zygote's automatic backwards will fail at `maximum(norm.(w))` in the case of complex numbers. 
 """
 function rrule(::typeof(logsumexp), w::Array{<:Number, 1})
-    u = maximum(norm.(w))
+    u = maximum(real.(w))
     expw = exp.(w .- u)
     fwd = u + log(sum(expw))
 

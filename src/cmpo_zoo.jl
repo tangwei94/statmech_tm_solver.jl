@@ -192,7 +192,7 @@ function cmpo_ising_realtime(Γ::Real)
 end
 
 """
-    energy_lieb_linger(ψ::cmps, c::Real, L::Real)
+    energy_lieb_lingerenergy_lieb_liniger(ψ::cmps, c::Real, L::Real, μ::Real)
 
     Calculate the energy density of Lieb Linger model for cMPS `ψ` with system size `L`.
     `c` is the parameter in the Hamiltonian.
@@ -207,6 +207,30 @@ function energy_lieb_liniger(ψ::cmps, c::Real, L::Real, μ::Real)
     tensorD = particle_density(ψ)
     tensorP = point_interaction(ψ)
     tensorE = tensorK + c * tensorP - μ * tensorD
+
+    # calculate environment
+    lop = K_mat(ψ, ψ)
+    env = finite_env(lop, L)
+    env = permute(env, (2, 3), (4, 1))
+        
+    return real(tr(env * tensorE))
+end
+
+"""
+    energy_pairing_boson(ψ::cmps, ν::Real, μ::Real, L::Real)
+
+    Calculate the energy density of "pairing boson" model for cMPS `ψ` with system size `L`.
+    `μ` and `ν` are the parameters in the Hamiltonian.
+    The Hamiltonian of Lieb Liniger model
+    ```
+        H = ∫dx [(dψ† / dx)(dψ / dx) - ν(ψ†ψ† + ψψ)  - μψ†ψ]
+    ``` 
+"""
+function energy_pairing_boson(ψ::cmps, ν::Real, μ::Real, L::Real)
+    tensorK = kinetic(ψ)
+    tensorD = particle_density(ψ)
+    tensorP = pairing(ψ)
+    tensorE = tensorK - ν * tensorP - μ * tensorD
 
     # calculate environment
     lop = K_mat(ψ, ψ)
