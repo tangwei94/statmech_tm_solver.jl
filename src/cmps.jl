@@ -718,7 +718,7 @@ end
 
     tangent map. act on the parameter space obtained after gauge elimination. 
 """
-function tangent_map(ψ::cmps, L::Real)
+function tangent_map(ψ::cmps, L::Real, p::Real=0)
 
     χ, d = get_chi(ψ), get_d(ψ)
 
@@ -735,14 +735,16 @@ function tangent_map(ψ::cmps, L::Real)
     Wvec = diag(W.data)
     normψ = logsumexp(L .* Wvec)
     Wvec .-= normψ / L
-    function coeff(a::Number, b::Number) 
-        if a' ≈ b
-            return L*exp(a'*L)
+    function coeff(a::Number, b::Number)
+        # when using coeff.(avec, bvec'), avec is column vector, bvec is row vector
+        # in this way the index ordering is consistent
+        if a ≈ b'
+            return L*exp(a*L)
         else 
-            return (exp(a'*L) - exp(b*L)) / (a' - b)
+            return (exp(a*L) - exp(b'*L)) / (a - b')
         end
     end
-    copyto!(coeffW.data, coeff.(Wvec', Wvec))
+    copyto!(coeffW.data, coeff.(Wvec, (Wvec .- p*im)'))
 
     # A tensor that is connected to G
     A = cmps(id(ℂ^get_chi(ψ)), copy(ψ.R))

@@ -9,6 +9,7 @@ using LinearAlgebra
 using KrylovKit
 using TensorOperations
 using TensorKitAD
+using QuadGK
 
 using Revise
 using statmech_tm_solver

@@ -16,14 +16,11 @@ end
 
     @test elem_mult(psi, phi) ≈ convert_to_tensormap(psi_arr .* phi_arr, 2)
 
-    norm(elem_mult(psi, phi))
-
     function f(arr::Array{ComplexF64, 3})
         a = convert_to_tensormap(arr, 2)
         return norm(elem_mult(a, phi))
     end
 
-    f(psi_arr)
     @test f'(psi_arr) ≈ FiniteDifferences.grad(central_fdm(5, 1), f, psi_arr)[1]
 
 end

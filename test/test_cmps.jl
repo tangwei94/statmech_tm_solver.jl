@@ -194,7 +194,7 @@ end
 
 # test gauge_fixing_proj
 @timedtestset "test gauge fixing" for ix in 1:10
-    L = rand()
+    L = 10*rand()
     χ, d = 4, 1
     ψ = cmps(rand, χ, d)
     K = K_mat(ψ, ψ)
@@ -203,20 +203,23 @@ end
 
     A = cmps(id(ℂ^get_chi(ψ)), copy(ψ.R))
     A = convert_to_tensormap(A)
-    V = Tensor(rand, ComplexF64, ℂ^χ*ℂ^(d*χ))
+    V = TensorMap(rand, ComplexF64, ℂ^(d*χ), ℂ^χ)
+    G = P * V
 
-    @tensor M[-1, -2; -3, -4] := A'[-3, -1, 2] * V[-2, 1] * P[2, -4, 1]
-    @test abs(tr(M * ρ)) < 1e-14
-    @tensor M1[-1; -2] := (M*ρ)[1, -1; 1, -2]
-    @test findmax(abs.(M1.data))[1] < 1e-14
+    @tensor M[-1, -2; -3, -4] := A'[-3, -1, 1] * G[-2, 1, -4]
+    ρM = ρ * M
+    @test abs(tr(ρM)) < 1e-14
+
+    @tensor empty[-1; -2] := ρM[1, -1; 1, -2]
+    @test findmax(abs.(empty.data))[1] < 1e-14
 end 
 
-# test precond_grad 
+# test tangent_map 
 @timedtestset "test tangent_map" for ix in 1:10
     L = 50 
     χ, d = 4, 1
+    p = rand() * 2 * pi / L 
     ψ = 0.01*cmps(rand, χ, d)
-    #ψ = ψm
     ψ = normalize(ψ, L; sym=false)
     K = K_mat(ψ, ψ)
     W, UR = eig(K)
@@ -228,27 +231,25 @@ end
     A = convert_to_tensormap(A)
     V = TensorMap(rand, ComplexF64, ℂ^(d*χ), ℂ^χ)
     
-    lop = tangent_map(ψ, L)
-    lop(V)
-
-    #W, _ = eigsolve(lop, V, 12); @show W
+    lop = tangent_map(ψ, L, p)
 
     #manual integration
     @tensor A1[-1, -2; -3, -4] := V[1, -4] * P[-2, 2, 1] * A'[-3, -1, 2]
-    Vc2 = 0*similar(V)
     normψ = tr(exp(L*K))
-    num_div = 10000
-    for ix in 1:num_div
-        tau = ix * L / num_div
-        A2 = permute(exp(K*(L-tau)) * A1 * exp(K*tau), (2, 3), (4, 1))
-        @tensor Vtmp[-1; -2] := A2[1, 3, 2, -2] * A[2, 4, 1] * P'[-1, 3, 4] 
-        Vc2 = Vc2 + L*Vtmp / num_div / normψ
+
+    function fVc2(tau::Real)
+        A2 = permute(exp(K*(L-tau)) * A1 * exp(K*(tau)), (2, 3), (4, 1))
+        @tensor Vtmp[-1; -2] := A2[1, 3, 2, -2] * A[2, 4, 1] * P'[-1, 3, 4]
+        return exp(-p*tau*im) * Vtmp 
     end
-    ρ = permute(exp(L*K) / normψ, (2, 3), (4, 1))
+    Vc2 = quadgk(fVc2, 0, L)[1]
+
+    ρ = permute(exp(L*K), (2, 3), (4, 1))
     D = id(ℂ^(d+1))
     D.data[1] = 0
     @tensor Vd2[-1; -2] := ρ[3, 5, 2, -2] * P[2, 4, 1] * V[1, 3] * D[6, 4] * P'[-1, 5, 6]
-    V2 = Vc2 + Vd2
-
-    @test norm(lop(V) - V2) < 1e-5
+    V2 = L*(Vc2 + Vd2) / normψ
+    
+    # compare
+    @test norm(lop(V) - V2) / L < 1e-14
 end
