@@ -838,3 +838,177 @@ end
 function ldiv!(x::Array{ComplexF64, 3}, P::preconditioner, y::Array{ComplexF64, 3})
     copyto!(x, precond_grad(P, y))
 end
+
+function elem_mult_f1(a::TensorMap{ComplexSpace, 1, 1}, f::Function)
+    χ2 = dim(domain(a))
+    c = similar(a)
+    for ix in 1:χ2
+        for iy in 1:χ2
+            c.data[ix, iy] = a[ix, iy] * f(ix, iy)
+        end
+    end
+    return c
+end
+
+function elem_mult_f2(a::TensorMap{ComplexSpace, 1, 1}, b::TensorMap{ComplexSpace, 1, 1}, f::Function)
+    χ2 = dim(domain(a))
+    c = similar(a)
+    for ix in 1:χ2
+        for iy in 1:χ2
+            for im in 1:χ2
+                c.data[ix, iy] = a[ix, im] * b[im, iy] * f(ix, im, iy)
+            end
+        end
+    end
+    return c
+end
+
+function lieb_liniger_h_tangent_map(ψ::cmps, p::Real, q::Real, c::Real, L::Real, μ::Real)
+
+    χ, d = get_chi(ψ), get_d(ψ)
+
+    # diagonalize K matrix, normalize W according to length
+    K = K_mat(ψ, ψ)
+    W, UR = eig(K)
+    UL = inv(UR)
+    Wvec = diag(W.data)
+    normψ = logsumexp(L .* Wvec)
+    Wvec .-= normψ / L
+    copyto!(W.data, diag(Wvec))
+
+    # gauge fixing projector
+    P = gauge_fixing_proj(ψ, L)    
+
+    function theta2(a::Number, b::Number)
+        if a ≈ b
+            return L*exp(a*L)
+        else 
+            return (exp(a*L) - exp(b*L)) / (a - b)
+        end
+    end
+    function theta3(a::Number, b::Number, c::Number)
+        if a ≈ b ≈ c 
+            return 0.5 * exp(L*b) * L^2
+        elseif a ≈ b && b != c 
+            return -1 * (exp(L*b) - exp(L*c) - L*exp(L*b)*(b-c) ) / (b - c)^2
+        elseif b ≈ c && c != a 
+            return -1 * (exp(L*c) - exp(L*a) - L*exp(L*c)*(c-a) ) / (c - a)^2
+        elseif c ≈ a && a != b 
+            return -1 * (exp(L*a) - exp(L*b) - L*exp(L*a)*(a-b) ) / (a - b)^2
+        else
+            return (a * (exp(L*b) - exp(L*c)) + b * (exp(L*c) - exp(L*a)) + c * (exp(L*a) - exp(L*b))) / ((a-b)*(b-c)*(c-a))
+        end
+    end
+
+    A = cmps(id(ℂ^χ), copy(ψ.R))
+    A = convert_to_tensormap(A)
+    DQ = id(ℂ^(d+1))
+    DQ.data[1] = 0
+    DR = zero(DQ)
+    DR.data[1] = 1
+    DQR = zero(DQ)
+    DQR[1, 2:end] = 1
+    DRQ = zero(DQ)
+    DRQ[2:end, 1] = 1
+
+    ψtn = convert_to_tensormap(ψ)
+   
+    function f(V::TensorMap{ComplexSpace, 1, 1})
+        # particle density
+        ## x != y != x'
+        @tensor Mx[-1, -2; -3, -4] := P[-2, 2, 1] * V[1, -4] * A'[-3, -1, 2]
+        @tensor My[-1, -2; -3, -4] := ψtn'[-3, -1, 1] * DR[1, 2] * ψtn[-2, 2, -4]
+        Mx = UL * Mx * UR 
+        My = UL * My * UR
+        M = elem_mult_f2(Mx, My, (ix, im, iy) -> theta3(Wvec[ix], Wvec[im] - im*p, Wvec[iy] - im*(p+q))) +
+            elem_mult_f2(My, Mx, (ix, im, iy) -> theta3(Wvec[ix] + im*(p+q), Wvec[im] + im*p, Wvec[iy]))
+
+        ## x == y != x'
+        @tensor My[-1, -2; -3, -4] := ψtn'[-3, -1, 2] * DR[2, 3] * P[2, 3, 1] * V[1, -4]
+        My = UL * My * UR
+        M += elem_mult_f1(My, (ix, iy) -> theta2(Wvec[ix] + im*(p+q), Wvec[iy]))
+        M = permute(UR * M * UL, (2, 3), (4, 1))
+        @tensor Vd[-1; -2] := M[1, 3, 2, -2] * A[2, 4, 1] * P'[-1, 3, 4]
+
+        ## x != y == x'
+        M = elem_mult_f1(Mx, (ix, iy) -> theta2(Wvec[ix] + im*p, Wvec[iy]))
+        M = permute(UR * M * UL, (2, 3), (4, 1))
+        @tensor Vd[-1; -2] = Vd[-1, -2] + M[1, 3, 2, -2] * ψtn[2, 5, 1] * DR[4, 5] * P'[-1, 3, 4]
+
+        ## x == y == x'
+        M = permute(UR * exp(W*L) * UL, (2, 3), (4, 1))
+        @tensor Vd[-1; -2] = Vd[-1, -2] + M[2, 4, 3, -2] * P[3, 6, 1] * V[1, 2] * DR[5, 6] * P'[-1, 4, 5]
+
+        # kinetic term
+        ## x != y != x'
+        @tensor QR_comm[-1, -2; -3, -4] := DQ[-1, -3] * DR[-2, -4] + DR[-1, -3] * DQ[-2, -4] -
+                                           DQR[-1, -3] * DRQ[-2, -4] - DRQ[-1, -3] * DRQ[-2, -4]
+        @tensor My[-1, -2; -3, -4] := ψtn'[1, -1, 3] * ψtn[-3, 1, 4] * QR_comm[3, 4, 5, 6] * ψtn[-2, 5, 2] * ψtn[2, 6, -4]
+        My = UL * My * UR
+        M = elem_mult_f2(Mx, My, (ix, im, iy) -> (Wvec[ix], Wvec[im] - im*p, Wvec[iy] - im*(p+q))) +
+            elem_mult_f2(My, Mx, (ix, im, iy) -> (Wvec[ix] + im*(p+q), Wvec[im] + im*p, Wvec[iy]))
+
+        ## x == y != x'
+        @tensor My[-1, -2; -3, -4] := ψtn'[3, -1, 4] * ψtn'[-3, 3, 5] * QR_comm[4, 5, 6, 7] * P[-2, 6, 1] * V[1, 2] * ψtn[2, 7, -4] + 
+                                      ψtn'[3, -1, 4] * ψtn'[-3, 3, 5] * QR_comm[4, 5, 6, 7] * ψ[-2, 6, 2] * P[2, 7, 1] * V[1, -4] +
+                                      ψtn'[3, -1, 4] * ψtn'[-3, 3, 5] * DQ[4, 6] * DR[5, 7] * im*p*A[-2, 6, 2] * P[2, 7, 1] * V[1, -4] - 
+                                      ψtn'[3, -1, 4] * ψtn'[-3, 3, 5] * DRQ[4, 6] * DQR[5, 7] * im*p*A[-2, 6, 2] * P[2, 7, 1] * V[1, -4]
+        My = UL * My * UR
+        M += elem_mult_f1(My, (ix, iy) -> theta2(Wvec[ix] + im*(p+q), Wvec[iy]))
+        M = permute(UR * M * UL, (2, 3), (4, 1))
+        @tensor Vk[-1; -2] := M[1, 3, 2, -2] * A[2, 4, 1] * P'[-1, 3, 4]
+
+        ## x != y == x'
+        M = elem_mult_f1(Mx, (ix, iy) -> theta2(Wvec[ix] + im*p, Wvec[iy]))
+        M = permute(UR * M * UL, (2, 3), (4, 1))
+        @tensor Vk[-1; -2] = Vk[-1, -2] + M[1, 4, 2, 5] * P'[-1, 4, 6] * ψtn'[5, -2, 7] * QR_comm[6, 7, 8, 9] * ψtn[2, 8, 3] * ψtn[3, 9, 1] + 
+                                          M[1, 4, 2, -2] * ψtn'[5, 4, 6] * P'[-1, 5, 7] * QR_comm[6, 7, 8, 9] * ψtn[2, 8, 3] * ψtn[3, 9, 1] + 
+                                          M[1, 4, 2, -2] * (-im*p)*A'[5, 4, 6] * P'[-1, 5, 7] * DQ[6, 8] * DR[7, 9] * ψtn[2, 8, 3] * ψtn[3, 9, 1] - 
+                                          M[1, 4, 2, -2] * (-im*p)*A'[5, 4, 6] * P'[-1, 5, 7] * DQR[6, 8] * DRQ[7, 9] * ψtn[2, 8, 3] * ψtn[3, 9, 1]
+        ## x == y == x
+        QR_comm2[-1, -2; -3, -4] := DQ[-1, -3] * DR[-2, -4] - DQR[-1, -3] * DRQ[-2, -4]
+        M = permute(UR * exp(W*L) * UL, (2, 3), (4, 1))
+        @tensor Vk[-1; -2] = Vk[-1, -2] + M[1, 5, 2, 6] * P'[-1, 5, 7] * ψtn'[6, -2, 8] * QR_comm[7, 8, 9, 10] * P[2, 9, 3] * V[3, 4] * ψtn[4, 10, 1] +
+                                          M[1, 5, 2, 6] * P'[-1, 5, 7] * ψtn'[6, -2, 8] * QR_comm[7, 8, 9, 10] * ψtn[2, 9, 3] * P[3, 10, 4] * V[4, 1] +
+                                          M[1, 5, 2, -2] * ψtn'[6, 5, 7] * P'[-1, 6, 8] * QR_comm[7, 8, 9, 10] * ψtn[2, 9, 3] * P[3, 10, 4] * V[4, 1] +
+                                          M[1, 5, 2, -2] * ψtn'[6, 5, 7] * P'[-1, 6, 8] * QR_comm[7, 8, 9, 10] * P[2, 9, 3] * V[3, 4] * ψtn[4, 10, 1] +
+                                          M[1, 6, 2, 5] * P'[-1, 6, 7] * ψtn'[5, -2, 8] * QR_comm2[7, 8, 9, 10] * (im*p)*A[2, 9, 3] * P[3, 10, 4] * V[4, 1] + 
+                                          M[1, 5, 2, -2] * ψtn'[6, 5, 7] * P'[-1, 6, 8] * QR_comm2[7, 8, 9, 10] * (im*p)*A[2, 9, 3] * P[3, 10, 4] * V[4, 1] + 
+                                          M[1, 5, 2, -2] * (-im*p)*A'[6, 5, 7] * P'[-1, 6, 8] * QR_comm2[7, 8, 9, 10] * ψtn[2, 9, 3] * P[3, 10, 4] * V[4, 1] + 
+                                          M[1, 5, 2, -2] * (-im*p)*A'[6, 5, 7] * P'[-1, 6, 8] * QR_comm2[7, 8, 9, 10] * P[2, 9, 3] * V[3, 4] * ψtn[4, 10, 1] + 
+                                          M[1, 5, 2, -2] * (-im*p)*A'[6, 5, 7] * P'[-1, 6, 8] * DQ[7, 9] * DR[8, 10] * (im*p)*A[2, 9, 3] * P[3, 10, 4] * V[4, 1]
+
+        # delta potential
+        ## x != y != x'
+        @tensor My[-1, -2; -3, -4] := ψtn'[1, -1, 3] * ψtn'[-3, 1, 4] * DR[3, 5] * DR[4, 6] * ψtn[-2, 5, 2] * ψtn[2, 6, -4]
+        My = UL * My * UR
+        M = elem_mult_f2(Mx, My, (ix, im, iy) -> (Wvec[ix], Wvec[im] - im*p, Wvec[iy] - im*(p+q))) +
+            elem_mult_f2(My, Mx, (ix, im, iy) -> (Wvec[ix] + im*(p+q), Wvec[im] + im*p, Wvec[iy]))
+
+        ## x == y != x'
+        @tensor My[-1, -2; -3, -4] := ψtn'[1, -1, 4] * ψtn'[-3, 1, 5] * DR[4, 6] * DR[5, 7] * ψtn[-2, 6, 3] * P[3, 7, 2] * V[2, -4] +
+                                      ψtn'[1, -1, 4] * ψtn'[-3, 1, 5] * DR[4, 6] * DR[5, 7] * P[-2, 6, 2] * V[2, 3] * ψtn[3, 7, -4]
+        My = UL * My * UR
+        M += elem_mult_f1(My, (ix, iy) -> theta2(Wvec[ix] + im*(p+q), Wvec[iy]))
+        M = permute(UR * M * UL, (2, 3), (4, 1))
+        @tensor Vp[-1; -2] := M[1, 3, 2, -2] * A[2, 4, 1] * P'[-1, 3, 4]
+
+        ## x != y == x' 
+        M = elem_mult_f1(Mx, (ix, iy) -> theta2(Wvec[ix] + im*p, Wvec[iy]))
+        M = permute(UR * M * UL, (2, 3), (4, 1))
+        @tensor Vp[-1; -2] = Vp[-1, -2] + M[1, 4, 2, -2] * ψtn'[5, 4, 6] * P'[-1, 5, 7] * DR[6, 8] * DR[7, 9] * ψtn[2, 8, 3] * ψtn[3, 9, 1] + 
+                                          M[1, 5, 2, 4] * P'[-1, 5, 6] * ψtn'[4, -2, 7] * DR[6, 8] * DR[7, 9] * ψtn[2, 8, 3] * ψtn[3, 9, 1]
+   
+        ## x == y == x'
+        M = permute(UR * exp(W*L) * UL, (2, 3), (4, 1))
+        @tensor Vp[-1; -2] = Vp[-1, -2] + M[4, 5, 3, -2] * ψtn'[6, 5, 7] * P'[-1, 6, 8] * DR[7, 9] * DR[8, 10] * ψtn[3, 9, 2] * P[2, 10, 1] * V[1, 4] +
+                                          M[4, 6, 3, 5] * P'[-1, 6, 7] * ψtn'[5, -2, 8] * DR[1, 9] * DR[8, 10] * ψtn[3, 9, 2] * P[2, 10, 1] * V[1, 4] +
+                                          M[3, 5, 4, -2] * ψtn'[6, 5, 7] * P'[-1, 6, 8] * DR[7, 9] * DR[8, 10] * P[4, 9, 1] * V[1, 2] * ψtn[2, 10, 3] +
+                                          M[3, 6, 4, 5] * P'[-1, 6, 7] * ψtn'[5, -2, 8] * DR[7, 9] * DR[8, 10] * P[4, 9, 1] * V[1, 2] * ψtn[2, 10, 3]
+
+        # final result. 
+        Vout = L*(Vk - μ * Vd + c * Vp)
+        return Vout
+    end
+    return f
+end
