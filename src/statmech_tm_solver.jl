@@ -89,7 +89,8 @@ export  cmps,
         gauge_fixing_proj,
         tangent_map,
         preconditioner,
-        precond_grad
+        precond_grad, 
+        lieb_liniger_h_tangent_map
 
 # cmpo_zoo.jl
 export  cmpo_ising,
