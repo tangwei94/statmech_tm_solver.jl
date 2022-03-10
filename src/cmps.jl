@@ -734,7 +734,7 @@ function tangent_map(ψ::cmps, L::Real, p::Real=0)
     Wvec = diag(W.data)
     normψ = logsumexp(L .* Wvec)
     Wvec .-= normψ / L
-    @tullio coeffW[ix, iy] := theta2(L, Wvec[ix], Wvec[iy])
+    @tullio coeffW[ix, iy] := theta2(L, Wvec[ix], Wvec[iy] - p*im)
     #coeffW = similar(W)
     #function coeff(a::Number, b::Number)
     #    # when using coeff.(avec, bvec'), avec is column vector, bvec is row vector
@@ -795,12 +795,13 @@ function preconditioner(ψ::cmps, L::Real)
     proj = gauge_fixing_proj(ψ, L)
 
     V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
-    δ = norm(map(V)) / norm(V) * 5e-5
+    δ = norm(map(V)) / norm(V) * 1e-4
+
     Ws, Vs = eigsolve(map, V, d*χ^2; tol=δ, krylovdim=d*χ^2, ishermitian=true)
 
     function invmap(V::TensorMap{ComplexSpace, 1, 1})
-        f = (Wx, Vx) -> Vx * tr(Vx' * V) * (1 / (Wx + δ) - 1 / δ) + Vx / δ 
-        return sum(f.(Ws, Vs))  
+        f = (Wx, Vx) -> Vx * tr(Vx' * V) * (1 / (Wx + δ) - 1 / δ) 
+        return sum(f.(Ws, Vs)) + V / δ 
     end
 
     return preconditioner(map, invmap, proj)
