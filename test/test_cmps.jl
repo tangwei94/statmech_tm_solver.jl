@@ -254,7 +254,7 @@ end
     @test norm(lop(V) - V2) / L < 1e-14
 end
 
-@timedtestset "test util functions for h tangent map" for ix in 1:1
+@timedtestset "test util functions for h tangent map" for ix in 1:10
     L = rand()
     p, q = 2*pi/L, 4*pi/L
     δ=1e-6
@@ -273,15 +273,15 @@ end
     Ct = VL * C * VR
 
     # test elem_mult_f1 and theta2
-    @test theta2(1, 2) == theta2(2, 1)
+    @test isapprox(theta2(1, 2), theta2(2, 1))
     @test isapprox(theta2(1, 1+δ), theta2(1, 1); atol=sqrt(δ))
 
     At1 = statmech_tm_solver.elem_mult_f1(At, (ix, iy) -> theta2(Wvec[ix], Wvec[iy] + im*p))    
     @test tr(At1 * Bt) ≈ quadgk(x1 -> exp(im*p*x1)tr(A * exp(x1*M) * B * exp((L-x1)*M)), 0, L)[1]
 
     # test elem_mult_f2 and theta3
-    @test theta3(1, 2, 3) == theta3(2, 3, 1) == theta3(3, 1, 2)
-    @test theta3(1, 1, 2) == theta3(2, 1, 1) == theta3(1, 2, 1)
+    @test theta3(1, 2, 3) ≈ theta3(2, 3, 1) ≈ theta3(3, 1, 2)
+    @test theta3(1, 1, 2) ≈ theta3(2, 1, 1) ≈ theta3(1, 2, 1)
 
     @test isapprox(theta3(1, 1+δ, 2), theta3(1+δ, 1, 2); atol=δ)
     @test isapprox(theta3(1, 1, 2), theta3(1+δ, 1, 2); atol=sqrt(δ))

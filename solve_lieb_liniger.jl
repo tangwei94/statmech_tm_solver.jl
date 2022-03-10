@@ -12,6 +12,7 @@ using Plots
 using Optim
 using ChainRules
 using ChainRulesCore
+using Suppressor
 
 using Revise
 using statmech_tm_solver
@@ -38,19 +39,20 @@ end
 # construct the preconditioner
 function _precondprep!(P::preconditioner, ψ_arr::Array{ComplexF64, 3})
     ψ = convert_to_cmps(ψ_arr)
-    P.map = tangent_map(ψ, L)
-    P.proj = gauge_fixing_proj(ψ, L)
+    P1 = preconditioner(ψ, L)
+    P.map = P1.map
+    P.invmap = P1.invmap
+    P.proj = P1.proj
 end
 
 ψms, Es = [], []
+ψm = cmps(rand, 2, d)
 
-for χ in [2; 4; 8]
-    # from random init guess
-    if χ == 2
-        ψ0 = cmps(rand, χ, d)
-    else
-        ψ0 = expand(ψm, χ, 0.01)
-    end
+for χ in [2; 4; 8; 12; 16]
+    global ψm
+
+    #ψ0 = expand(ψm, χ, 0.01)
+    ψ0 = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)") |> convert_to_cmps
     ψ_arr0 = convert_to_array(ψ0)
     E0 = energy_lieb_liniger(ψ0, c, L, μ)
 
@@ -78,3 +80,44 @@ for χ in [2; 4; 8]
     
     quicksave("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)", convert_to_tensormap(ψm))
 end
+
+#########################################################
+ψm = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi8") |> convert_to_cmps
+ψm = normalize(ψm, L, sym=false)
+E = energy_lieb_liniger(ψm, c, L, μ) 
+
+env = finite_env(K_mat(ψm, ψm), L)
+env = permute(env, (2, 3), (4, 1))
+op_ρ = particle_density(ψm)
+op_k = kinetic(ψm)
+ρ_value = tr(env * op_ρ)
+k_value = tr(env * op_k)
+γ = c / ρ_value
+
+shift = 0
+#for ix in -20:20
+    ix = 0
+    p = ix * 2 * pi / L
+    χ = get_chi(ψm)
+    V0 = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
+    h_lop = lieb_liniger_h_tangent_map(ψm, p, 0, c, L, μ)
+    n_lop = tangent_map(ψm, L, p)
+
+    Wn, Vn = eigsolve(n_lop, V0, d*χ^2; tol=1e-8, krylovdim=d*χ^2, ishermitian=true)
+    invWn = zero(Wn)
+    invWn[Wn .> δ] = 1 ./ Wn[Wn .> δ]
+    invWn[Wn .<= δ] .= 0
+    #@benchmark h_lop(V0)
+    #@benchmark n_lop(V0)
+    #@benchmark linsolve(V -> n_lop(V), V0, V0; krylovdim=χ^2, ishermitian=true, isposdef=true)
+
+    function linsolve_with_eig(V0::TensorMap{ComplexSpace, 1, 1})
+        tmpf = (Vx, invWx) -> Vx * tr(Vx' * V0) * invWx#/ (Wx + δ)
+        return sum(tmpf.(Vn, invWn)) 
+    end
+    #@benchmark linsolve_with_eig(V0)
+
+    #@show geneigsolve(v->(h_lop(v)/L, n_lop(v)), V0, 2*χ, :SR ; ishermitian=true, isposdef=true)[1]
+    Ee = eigsolve(h_lop ∘ linsolve_with_eig, V0, 1, :SR)[1] ./ L
+    @show ix, Ee 
+#end

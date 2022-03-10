@@ -731,21 +731,22 @@ function tangent_map(ψ::cmps, L::Real, p::Real=0)
     proj = gauge_fixing_proj(ψ, L)    
 
     # calculate coefficient matrix  
-    coeffW = similar(W)
     Wvec = diag(W.data)
     normψ = logsumexp(L .* Wvec)
     Wvec .-= normψ / L
-    function coeff(a::Number, b::Number)
-        # when using coeff.(avec, bvec'), avec is column vector, bvec is row vector
-        # in this way the index ordering is consistent
-        if a ≈ b'
-            return L*exp(a*L)
-        else 
-            return (exp(a*L) - exp(b'*L)) / (a - b')
-        end
-    end
-    copyto!(coeffW.data, coeff.(Wvec, (Wvec .- p*im)'))
-
+    @tullio coeffW[ix, iy] := theta2(L, Wvec[ix], Wvec[iy])
+    #coeffW = similar(W)
+    #function coeff(a::Number, b::Number)
+    #    # when using coeff.(avec, bvec'), avec is column vector, bvec is row vector
+    #    # in this way the index ordering is consistent
+    #    if a ≈ b'
+    #        return L*exp(a*L)
+    #    else 
+    #        return (exp(a*L) - exp(b'*L)) / (a - b')
+    #    end
+    #end
+    #copyto!(coeffW.data, coeff.(Wvec, (Wvec .- p*im)'))
+    
     # A tensor that is connected to G
     A = cmps(id(ℂ^get_chi(ψ)), copy(ψ.R))
     A = convert_to_tensormap(A)
@@ -760,7 +761,9 @@ function tangent_map(ψ::cmps, L::Real, p::Real=0)
         # crossing term
         @tensor M0[-1, -2; -3, -4] := V[1, -4] * proj[-2, 2, 1] * A'[-3, -1, 2]
         M = UL * M0 * UR
-        M = elem_mult(M, coeffW)
+        #M = elem_mult(M, coeffW)
+        #M = elem_mult_f1(M, (ix, iy) -> theta2(L, Wvec[ix], Wvec[iy] - p*im))
+        @tullio M.data[ix, iy] = M.data[ix, iy] * coeffW[ix, iy]
         M = UR * M * UL
         M = permute(M, (2, 3), (4, 1))
         @tensor Vc[-1; -2] := M[1, 3, 2, -2] * A[2, 4, 1] * proj'[-1, 3, 4] 
@@ -776,6 +779,7 @@ end
 
 mutable struct preconditioner 
     map::Function
+    invmap::Function
     proj::AbstractTensorMap
 end
 
@@ -785,9 +789,21 @@ end
     construct the preconditioner for cmps `ψ` of length `L`.
 """
 function preconditioner(ψ::cmps, L::Real)
+    χ, d = get_chi(ψ), get_d(ψ)
+
     map = tangent_map(ψ, L)
     proj = gauge_fixing_proj(ψ, L)
-    return preconditioner(map, proj)
+
+    V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
+    δ = norm(map(V)) / norm(V) * 5e-5
+    Ws, Vs = eigsolve(map, V, d*χ^2; tol=δ, krylovdim=d*χ^2, ishermitian=true)
+
+    function invmap(V::TensorMap{ComplexSpace, 1, 1})
+        f = (Wx, Vx) -> Vx * tr(Vx' * V) * (1 / (Wx + δ) - 1 / δ) + Vx / δ 
+        return sum(f.(Ws, Vs))  
+    end
+
+    return preconditioner(map, invmap, proj)
 end
 
 """
@@ -802,16 +818,18 @@ function precond_grad(P::preconditioner, ψgrad_arr::Array{ComplexF64, 3})
 
     # modulate tangent map: P.map -> P.map + δ * id
     V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
-    δ = norm(P.map(V)) / norm(V) * 1e-4#; @show δ
-    f = (V -> P.map(V) + δ * V )
+    #δ = norm(P.map(V)) / norm(V) * 1e-4#; @show δ
+    #f = (V -> P.map(V) + δ * V )
 
     # project out gauge freedoms
     G = convert_to_tensormap(ψgrad_arr, 2)
     VG = P.proj' * G
 
     # inverse of the metric
-    VG1 = linsolve(f, VG, VG)[1]
-    G1 = P.proj * VG1 
+    #VG1 = linsolve(f, VG, VG)[1]
+    #Wfs, Vfs = eigsolve(f, VG, d*χ^2; krylovdim=d*χ^2, ishermitian=true)
+    #invf = (Wf, Vf) -> Vf * tr(Vf' * VG) / Wf
+    G1 = P.proj * P.invmap(VG)#sum(invf.(Wfs, Vfs)) 
     return convert_to_array(G1)
 end
 
@@ -840,26 +858,14 @@ function ldiv!(x::Array{ComplexF64, 3}, P::preconditioner, y::Array{ComplexF64, 
 end
 
 function elem_mult_f1(a::TensorMap{ComplexSpace, 1, 1}, f::Function)
-    χ2 = dim(domain(a))
     c = zero(a)
-    for ix in 1:χ2
-        for iy in 1:χ2
-            c.data[ix, iy] = a[ix, iy] * f(ix, iy)
-        end
-    end
+    @tullio c.data[ix, iy] = a.data[ix, iy] * f(ix, iy)
     return c
 end
 
 function elem_mult_f2(a::TensorMap{ComplexSpace, 1, 1}, b::TensorMap{ComplexSpace, 1, 1}, f::Function)
-    χ2 = dim(domain(a))
     c = zero(a)
-    for ix in 1:χ2
-        for iy in 1:χ2
-            for im in 1:χ2
-                c.data[ix, iy] += a[ix, im] * b[im, iy] * f(ix, im, iy)
-            end
-        end
-    end
+    @tullio c.data[ix, iy] = a.data[ix, im] * b.data[im, iy] * f(ix, im, iy)
     return c
 end
 
@@ -898,7 +904,7 @@ function lieb_liniger_h_tangent_map(ψ::cmps, p::Real, q::Real, c::Real, L::Real
     copyto!(W.data, diagm(Wvec))
 
     # gauge fixing projector
-    P = gauge_fixing_proj(ψ, L)    
+    P = gauge_fixing_proj(ψ, L)
 
     A = cmps(id(ℂ^χ), copy(ψ.R))
     A = convert_to_tensormap(A)
@@ -920,18 +926,31 @@ function lieb_liniger_h_tangent_map(ψ::cmps, p::Real, q::Real, c::Real, L::Real
     @tensor QR_comm3[-1, -2; -3, -4] := DQ[-1, -3] * DR[-2, -4] - DQRRQ[-1, -2, -3, -4]#DQR[-1, -3] * DRQ[-2, -4]
 
     ψtn = convert_to_tensormap(ψ)
-   
+
+    # coefficient arrays constructed from Wvec.
+    # for x != y != x', Mx * My * coeffs
+    @tullio coeff_W3_xy[ix, iz, iy] := theta3(L, Wvec[ix], Wvec[iz] - im*p, Wvec[iy] - im*(p+q)) 
+    # for x != y != x', My * Mx * coeffs
+    @tullio coeff_W3_yx[ix, iz, iy] := theta3(L, Wvec[ix] + im*(p+q), Wvec[iz] + im*p, Wvec[iy]) 
+    # for x == y != x'
+    @tullio coeff_W2_p1[ix, iy] := theta2(L, Wvec[ix] + im*(p+q), Wvec[iy])
+    # for x != y == x'
+    @tullio coeff_W2_p[ix, iy] := theta2(L, Wvec[ix] + im*p, Wvec[iy])
+    
     function f(V::TensorMap{ComplexSpace, 1, 1})
         @tensor Mx[-1, -2; -3, -4] := P[-2, 2, 1] * V[1, -4] * A'[-3, -1, 2]
         Mx = UL * Mx * UR 
+        Mtmp = similar(Mx)
 
         ## x != y != x'
         @tensor My[-1, -2; -3, -4] := -μ * ψtn'[-3, -1, 1] * DR[1, 2] * ψtn[-2, 2, -4] + 
                                       k0 * ψtn'[1, -1, 3] * ψtn'[-3, 1, 4] * QR_comm[3, 4, 5, 6] * ψtn[-2, 5, 2] * ψtn[2, 6, -4] +
                                       c * ψtn'[1, -1, 3] * ψtn'[-3, 1, 4] * DR[3, 5] * DR[4, 6] * ψtn[-2, 5, 2] * ψtn[2, 6, -4]
         My = UL * My * UR
-        M = elem_mult_f2(Mx, My, (ix, iz, iy) -> theta3(L, Wvec[ix], Wvec[iz] - im*p, Wvec[iy] - im*(p+q))) +
-            elem_mult_f2(My, Mx, (ix, iz, iy) -> theta3(L, Wvec[ix] + im*(p+q), Wvec[iz] + im*p, Wvec[iy]))
+        #M = elem_mult_f2(Mx, My, (ix, iz, iy) -> theta3(L, Wvec[ix], Wvec[iz] - im*p, Wvec[iy] - im*(p+q))) +
+        #    elem_mult_f2(My, Mx, (ix, iz, iy) -> theta3(L, Wvec[ix] + im*(p+q), Wvec[iz] + im*p, Wvec[iy]))
+        @tullio Mtmp.data[ix, iy] = Mx.data[ix, iz] * My.data[iz, iy] * coeff_W3_xy[ix, iz, iy] + 
+                                    My.data[ix, iz] * Mx.data[iz, iy] * coeff_W3_yx[ix, iz, iy]
 
         ## x == y != x'
         @tensor My[-1, -2; -3, -4] := -μ * ψtn'[-3, -1, 2] * DR[2, 3] * P[-2, 3, 1] * V[1, -4] +
@@ -942,13 +961,15 @@ function lieb_liniger_h_tangent_map(ψ::cmps, p::Real, q::Real, c::Real, L::Real
                                       c * ψtn'[1, -1, 4] * ψtn'[-3, 1, 5] * DR[4, 6] * DR[5, 7] * ψtn[-2, 6, 3] * P[3, 7, 2] * V[2, -4] +
                                       c * ψtn'[1, -1, 4] * ψtn'[-3, 1, 5] * DR[4, 6] * DR[5, 7] * P[-2, 6, 2] * V[2, 3] * ψtn[3, 7, -4]
         My = UL * My * UR
-        M += elem_mult_f1(My, (ix, iy) -> theta2(L, Wvec[ix] + im*(p+q), Wvec[iy]))
-        M = permute(UR * M * UL, (2, 3), (4, 1))
+        #M += elem_mult_f1(My, (ix, iy) -> theta2(L, Wvec[ix] + im*(p+q), Wvec[iy]))
+        @tullio Mtmp.data[ix, iy] += My.data[ix, iy] * coeff_W2_p1[ix, iy]
+        M = permute(UR * Mtmp * UL, (2, 3), (4, 1))
         @tensor Vout[-1; -2] := M[1, 3, 2, -2] * A[2, 4, 1] * P'[-1, 3, 4]
 
         ## x != y == x'
-        M = elem_mult_f1(Mx, (ix, iy) -> theta2(L, Wvec[ix] + im*p, Wvec[iy]))
-        M = permute(UR * M * UL, (2, 3), (4, 1))
+        #M = elem_mult_f1(Mx, (ix, iy) -> theta2(L, Wvec[ix] + im*p, Wvec[iy]))
+        @tullio Mtmp.data[ix, iy] = Mx.data[ix, iy] * coeff_W2_p[ix, iy]
+        M = permute(UR * Mtmp * UL, (2, 3), (4, 1))
         @tensor Vout[-1; -2] = Vout[-1, -2] - μ * M[1, 3, 2, -2] * ψtn[2, 5, 1] * DR[4, 5] * P'[-1, 3, 4] +
                                               k0 * M[1, 4, 2, 5] * P'[-1, 4, 6] * ψtn'[5, -2, 7] * QR_comm[6, 7, 8, 9] * ψtn[2, 8, 3] * ψtn[3, 9, 1] + 
                                               k0 * M[1, 4, 2, -2] * ψtn'[5, 4, 6] * P'[-1, 5, 7] * QR_comm[6, 7, 8, 9] * ψtn[2, 8, 3] * ψtn[3, 9, 1] + 
