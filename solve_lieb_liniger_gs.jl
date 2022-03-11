@@ -26,7 +26,6 @@ L = 50
 d = 1
 nsteps1 = 10 # ordinary LBFGS steps
 nsteps2 = 200 # preconditioned LBFGS steps
-precond_tol = 1e-5 # preconditioner = inv(g + precond_tol * norm(g) * Id)
 
 # cost function (energy) and its gradient
 function f(ψ_arr::Array{ComplexF64, 3})
@@ -41,7 +40,8 @@ end
 # construct the preconditioner
 function _precondprep!(P::preconditioner, ψ_arr::Array{ComplexF64, 3})
     ψ = convert_to_cmps(ψ_arr)
-    P1 = preconditioner(ψ, L; tol=1e-5)
+    tol = norm(f'(ψ_arr)) / length(ψ_arr)
+    P1 = preconditioner(ψ, L; tol=tol)
     P.map = P1.map
     P.invmap = P1.invmap
     P.proj = P1.proj

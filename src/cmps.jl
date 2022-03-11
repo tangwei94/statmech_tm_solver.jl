@@ -808,7 +808,15 @@ function preconditioner(ψ::cmps, L::Real; tol::Real=1e-4, gauge::Symbol=:period
     V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
     δ = norm(map(V)) / norm(V) * tol
 
-    Ws, Vs = eigsolve(map, V, d*χ^2; tol=δ, krylovdim=d*χ^2, ishermitian=true)
+    # sometimes KrylovKit raises error " LoadError: operator does not appear to be hermitian" here
+    # it seems that δ cannot be too small.
+    try
+        global Ws, Vs 
+        Ws, Vs = eigsolve(map, V, d*χ^2; tol=δ, krylovdim=d*χ^2, ishermitian=true)
+    catch e
+        @show e
+        Ws, Vs = eigsolve(map, V, d*χ^2; tol=δ, krylovdim=d*χ^2)
+    end
 
     function invmap(V::TensorMap{ComplexSpace, 1, 1})
         f = (Wx, Vx) -> Vx * tr(Vx' * V) * (1 / (Wx + δ) - 1 / δ) 
