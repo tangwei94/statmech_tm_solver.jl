@@ -45,6 +45,7 @@ Revise = "3"
 TensorKit = "0.10"
 TensorOperations = "3"
 TestExtras = "0.1"
+Tullio = "0.3"
 Zygote = "0.6"
 julia = "1"
 
