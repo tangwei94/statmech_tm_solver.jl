@@ -11,7 +11,6 @@ using Plots
 using Optim
 using ChainRules
 using ChainRulesCore
-using Suppressor
 
 using Revise
 using statmech_tm_solver
@@ -39,7 +38,14 @@ end
 # construct the preconditioner
 function _precondprep!(P::preconditioner, ψ_arr::Array{ComplexF64, 3})
     ψ = convert_to_cmps(ψ_arr)
-    P1 = preconditioner(ψ, L)
+    P1 = preconditioner(ψ, L; gauge=:periodic)
+    P.map = P1.map
+    P.invmap = P1.invmap
+    P.proj = P1.proj
+end
+function _precondprep1!(P::preconditioner, ψ_arr::Array{ComplexF64, 3})
+    ψ = convert_to_cmps(ψ_arr)
+    P1 = preconditioner(ψ, L; gauge=:left)
     P.map = P1.map
     P.invmap = P1.invmap
     P.proj = P1.proj
@@ -54,6 +60,7 @@ res = optimize(f, g!, ψ_arr0, LBFGS(), Optim.Options(show_trace=true, iteration
 ψ_arr = Optim.minimizer(res);
 ψm = convert_to_cmps(ψ_arr);
 
+# optimize with preconditioners, gauge=:periodic
 P0 = preconditioner(ψm, L);
 res_w_precond = optimize(f, g!, ψ_arr, LBFGS(P = P0, precondprep=_precondprep!), Optim.Options(show_trace=true, store_trace=true, iterations=nsteps))
 ψm_w_precond = convert_to_cmps(Optim.minimizer(res_w_precond));
@@ -61,13 +68,32 @@ res_w_precond = optimize(f, g!, ψ_arr, LBFGS(P = P0, precondprep=_precondprep!)
 trace_w_precond = Optim.trace(res_w_precond)
 times_w_precond = [trace_w_precond[ix].metadata["time"] for ix in 1:nsteps+1]
 values_w_precond = [trace_w_precond[ix].value for ix in 1:nsteps+1]
+gnorms_w_precond = [trace_w_precond[ix].g_norm for ix in 1:nsteps+1]
 
+# optimize with preconditioners, gauge=:left
+P0 = preconditioner(ψm, L);
+res_w_precond1 = optimize(f, g!, ψ_arr, LBFGS(P = P0, precondprep=_precondprep1!), Optim.Options(show_trace=true, store_trace=true, iterations=nsteps))
+ψm_w_precond1 = convert_to_cmps(Optim.minimizer(res_w_precond1));
+
+trace_w_precond1 = Optim.trace(res_w_precond1)
+times_w_precond1 = [trace_w_precond1[ix].metadata["time"] for ix in 1:nsteps+1]
+values_w_precond1 = [trace_w_precond1[ix].value for ix in 1:nsteps+1]
+gnorms_w_precond1 = [trace_w_precond1[ix].g_norm for ix in 1:nsteps+1]
+
+# optimize without preconditioners
 res_wo_precond = optimize(f, g!, ψ_arr, LBFGS(), Optim.Options(show_trace=true, store_trace=true, iterations=2*nsteps))
 ψm_wo_precond = convert_to_cmps(Optim.minimizer(res_wo_precond));
 
 trace_wo_precond = Optim.trace(res_wo_precond)
 times_wo_precond = [trace_wo_precond[ix].metadata["time"] for ix in 1:2*nsteps+1]
 values_wo_precond = [trace_wo_precond[ix].value for ix in 1:2*nsteps+1]
+gnorms_wo_precond = [trace_wo_precond[ix].g_norm for ix in 1:2*nsteps+1]
 
 plot(times_w_precond, values_w_precond)
+plot!(times_w_precond1, values_w_precond1)
 plot!(times_wo_precond, values_wo_precond)
+
+plot(times_w_precond, gnorms_w_precond)
+plot!(times_w_precond1, gnorms_w_precond1)
+plot!(times_wo_precond, gnorms_wo_precond)
+
