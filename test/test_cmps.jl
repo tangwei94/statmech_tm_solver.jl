@@ -294,7 +294,137 @@ end
         0, x1)[1], 0, L)[1] 
 end
 
-@timedtestset "test lieb liniger h tangent map" for ix in 1:10
+@timedtestset "test lieb liniger h tangent map; test for d=1" for ix in 1:10
+    
+    k0, μ, c = rand(3)
+    χ, d, L = 2, 1, rand()
+    p, q = 2*pi/L, 2*2*pi/L
+
+    ψ = cmps(rand, χ, d)
+    ψ = normalize(ψ, L; sym=false)
+    P = gauge_fixing_proj(ψ, L)
+    Vx2 = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
+    Vx1= TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
+
+    # overlap by tangent map function
+    lop = lieb_liniger_h_tangent_map(ψ, p, q, c, L, μ; k0=k0)
+    aaa = tr(Vx2' * lop(Vx1))
+
+    # manual integration + alternative construction of My
+    ψtn = convert_to_tensormap(ψ)
+    K = K_mat(ψ, ψ)
+    
+    # to be used in construction of M matrices (My, Mx1, Mx2, see below) with tensorkit
+    A = cmps(id(ℂ^χ), copy(ψ.R))
+    A = convert_to_tensormap(A)
+    DR = id(ℂ^(d+1))
+    DR.data[1] = 0
+    DQ = zero(DR)
+    DQ.data[1] = 1 
+    DQRRQ = zeros(d+1, d+1, d+1, d+1)
+    DRQQR = zeros(d+1, d+1, d+1, d+1)
+    for ix in 2:d+1
+        DQRRQ[1, ix, ix, 1] = 1
+        DRQQR[ix, 1, 1, ix] = 1
+    end
+    DQRRQ = TensorMap(DQRRQ, ℂ^(d+1)*ℂ^(d+1), ℂ^(d+1)*ℂ^(d+1))
+    DRQQR = TensorMap(DRQQR, ℂ^(d+1)*ℂ^(d+1), ℂ^(d+1)*ℂ^(d+1))
+
+    @tensor QR_comm[-1, -2; -3, -4] := DQ[-1, -3] * DR[-2, -4] + DR[-1, -3] * DQ[-2, -4] -
+                                       DQRRQ[-1, -2, -3, -4] - DRQQR[-1, -2, -3, -4]
+    @tensor QR_comm2[-1, -2; -3, -4] := DQ[-1, -3] * DR[-2, -4] - DRQQR[-1, -2, -3, -4]
+    @tensor QR_comm3[-1, -2; -3, -4] := DQ[-1, -3] * DR[-2, -4] - DQRRQ[-1, -2, -3, -4]
+
+    # to be used in construction of M matrices by using Q, R matrices, assuming d = 2
+    Q = ψ.Q
+    Iψ = id(ℂ^χ)
+    R = TensorMap(convert_to_array(ψ.R)[:, 1, :], ℂ^χ, ℂ^χ)
+    tangent1, tangent2 = P * Vx1, P * Vx2
+    V1  = TensorMap(convert_to_array(tangent1)[:, 1, :], ℂ^χ, ℂ^χ)
+    W1  = TensorMap(convert_to_array(tangent1)[:, 2, :], ℂ^χ, ℂ^χ)
+    V2 = TensorMap(convert_to_array(tangent2)[:, 1, :], ℂ^χ, ℂ^χ)
+    W2 = TensorMap(convert_to_array(tangent2)[:, 2, :], ℂ^χ, ℂ^χ)
+    tnp = (A1, A2) -> (@tensor Aout[-1, -2; -3, -4] := A1'[-3, -1] * A2[-2, -4])
+    comm = (A1, A2) -> (A1 * A2 - A2 * A1)
+
+    # Mx's
+    @tensor Mx1[-1, -2; -3, -4] := A'[-3, -1, 2] * P[-2, 2, 1] * Vx1[1, -4]
+    @tensor Mx2[-1, -2; -3, -4] := P'[1, -1, 2] * Vx2'[-3, 1] * A[-2, 2, -4]
+    @tensor Mxx[-1, -2; -3, -4] := P'[1, -1, 3] * Vx2'[-3, 1] * DR[3, 4] * P[-2, 4, 2] * Vx1[2, -4] 
+    @test Mx1 ≈ tnp(Iψ, V1) + tnp(R, W1) 
+    @test Mx2 ≈ tnp(V2, Iψ) + tnp(W2, R)
+    @test Mxx ≈ tnp(W2, W1)
+
+    # x != x' != y
+    @tensor My[-1, -2; -3, -4] := -μ * ψtn'[-3, -1, 1] * DR[1, 2] * ψtn[-2, 2, -4] +
+                                  k0 * ψtn'[1, -1, 3] * ψtn'[-3, 1, 4] * QR_comm[3, 4, 5, 6] * ψtn[-2, 5, 2] * ψtn[2, 6, -4] + 
+                                  c * ψtn'[1, -1, 3] * ψtn'[-3, 1, 4] * DR[3, 5] * DR[4, 6] * ψtn[-2, 5, 2] * ψtn[2, 6, -4]
+    @test My ≈ -μ * tnp(R, R) +
+               k0 * tnp(comm(Q, R), comm(Q, R)) + 
+               c * tnp(R*R, R*R) 
+    res1 = 
+    quadgk(x1 -> quadgk(
+        x2 -> exp(-im*(p+q)*x2) * exp(im*p*x1) * tr(My * exp(x2*K) * Mx2 * exp((x1 - x2)*K) * Mx1 * exp((L-x1)*K) ), 
+        0, x1)[1], 0, L)[1] +
+    quadgk(x1 -> quadgk(
+        x2 -> exp(-im*(p+q)*x2) * exp(im*p*x1) * tr(My * exp(x1*K) * Mx1 * exp((x2 - x1)*K) * Mx2 * exp((L-x2)*K) ),
+        x1, L)[1], 0, L)[1]
+
+    # y != x == x' 
+    res1_a = quadgk(x1 -> exp(-im*q*x1) * tr(My * exp(x1*K) * Mxx * exp((L-x1)*K)), 0, L)[1]
+
+    # y == x != x'
+    @tensor My[-1, -2; -3, -4] := -μ * ψtn'[-3, -1, 2] * DR[2, 3] * P[-2, 3, 1] * Vx1[1, -4] +
+                                  k0 * ψtn'[3, -1, 4] * ψtn'[-3, 3, 5] * QR_comm[4, 5, 6, 7] * P[-2, 6, 1] * Vx1[1, 2] * ψtn[2, 7, -4] +
+                                  k0 * ψtn'[3, -1, 4] * ψtn'[-3, 3, 5] * QR_comm[4, 5, 6, 7] * ψtn[-2, 6, 2] * P[2, 7, 1] * Vx1[1, -4] +
+                                  k0 * ψtn'[3, -1, 4] * ψtn'[-3, 3, 5] * DQ[4, 6] * DR[5, 7] * (im*p)*A[-2, 6, 2] * P[2, 7, 1] * Vx1[1, -4] - 
+                                  k0 * ψtn'[3, -1, 4] * ψtn'[-3, 3, 5] * DRQQR[4, 5, 6, 7] * (im*p)*A[-2, 6, 2] * P[2, 7, 1] * Vx1[1, -4] +
+                                  c * ψtn'[1, -1, 4] * ψtn'[-3, 1, 5] * DR[4, 6] * DR[5, 7] * ψtn[-2, 6, 3] * P[3, 7, 2] * Vx1[2, -4] + 
+                                  c * ψtn'[1, -1, 4] * ψtn'[-3, 1, 5] * DR[4, 6] * DR[5, 7] * P[-2, 6, 2] * Vx1[2, 3] * ψtn[3, 7, -4]
+    @test My ≈ -μ * tnp(R, W1) + 
+               k0 * tnp(comm(Q, R), comm(V1, R) + comm(Q, W1) + im*p*W1) + 
+               c * tnp(R*R, R*W1 + W1*R) 
+    res2 = quadgk(x2 -> exp(-im*(p+q)*x2) * tr(My * exp(x2*K) * Mx2 * exp((L-x2)*K)), 0, L)[1]
+
+    # y == x' != x
+    @tensor My[-1, -2; -3, -4] := -μ * P'[1, -1, 2] * Vx2'[-3, 1] * DR[2, 3] * ψtn[-2, 3, -4] + 
+                                  k0 * P'[1, -1, 4] * Vx2'[2, 1] * ψtn'[-3, 2, 5] * QR_comm[4, 5, 6, 7] * ψtn[-2, 6, 3] * ψtn[3, 7, -4] + 
+                                  k0 * ψtn'[2, -1, 4] * P'[1, 2, 5] * Vx2'[-3, 1] * QR_comm[4, 5, 6, 7] * ψtn[-2, 6, 3] * ψtn[3, 7, -4] + 
+                                  k0 * (-im*(p+q))*A'[2, -1, 4] * P'[1, 2, 5] * Vx2'[-3, 1] * DQ[4, 6] * DR[5, 7] * ψtn[-2, 6, 3] * ψtn[3, 7, -4] -
+                                  k0 * (-im*(p+q))*A'[2, -1, 4] * P'[1, 2, 5] * Vx2'[-3, 1] * DQRRQ[4, 5, 6, 7] * ψtn[-2, 6, 3] * ψtn[3, 7, -4] +
+                                  c * ψtn'[2, -1, 4] * P'[1, 2, 5] * Vx2'[-3, 1] * DR[4, 6] * DR[5, 7] * ψtn[-2, 6, 3] * ψtn[3, 7, -4] + 
+                                  c * P'[1, -1, 4] * Vx2'[2, 1] * ψtn'[-3, 2, 5] * DR[4, 6] * DR[5, 7] * ψtn[-2, 6, 3] * ψtn[3, 7, -4]
+    @test My ≈ -μ * tnp(W2, R) +
+               k0 * tnp(comm(V2, R) + comm(Q, W2) + im*(p+q)*W2, comm(Q, R)) +
+               c * tnp(R*W2 + W2*R, R*R) 
+    res3 = quadgk(x1 -> exp(im*p*x1) * tr(My * exp(x1*K) * Mx1 * exp((L-x1)*K)), 0, L)[1]
+
+    # y == x' == x
+    @tensor My[-1, -2; -3, -4] := -μ * P'[1, -1, 3] * Vx2'[-3, 1] * DR[3, 4] * P[-2, 4, 2] * Vx1[2, -4] +
+                                  k0 * P'[1, -1, 5] * Vx2'[2, 1] * ψtn'[-3, 2, 6] * QR_comm[5, 6, 7, 8] * P[-2, 7, 3] * Vx1[3, 4] * ψtn[4, 8, -4] +
+                                  k0 * P'[1, -1, 5] * Vx2'[2, 1] * ψtn'[-3, 2, 6] * QR_comm[5, 6, 7, 8] * ψtn[-2, 7, 4] * P[4, 8, 3] * Vx1[3, -4] +
+                                  k0 * ψtn'[2, -1, 5] * P'[1, 2, 6] * Vx2'[-3, 1] * QR_comm[5, 6, 7, 8] * ψtn[-2, 7, 4] * P[4, 8, 3] * Vx1[3, -4] +
+                                  k0 * ψtn'[2, -1, 5] * P'[1, 2, 6] * Vx2'[-3, 1] * QR_comm[5, 6, 7, 8] * P[-2, 7, 3] * Vx1[3, 4] * ψtn[4, 8, -4] +
+                                  k0 * P'[1, -1, 5] * Vx2'[2, 1] * ψtn'[-3, 2, 6] * QR_comm2[5, 6, 7, 8] * (im*p)*A[-2, 7, 4] * P[4, 8, 3] * Vx1[3, -4] + 
+                                  k0 * ψtn'[2, -1, 5] * P'[1, 2, 6] * Vx2'[-3, 1] * QR_comm2[5, 6, 7, 8] * (im*p)*A[-2, 7, 4] * P[4, 8, 3] * Vx1[3, -4] +
+                                  k0 * (-im*(p+q))*A'[2, -1, 5] * P'[1, 2, 6] * Vx2'[-3, 1] * QR_comm3[5, 6, 7, 8] * ψtn[-2, 7, 4] * P[4, 8, 3] * Vx1[3, -4] + 
+                                  k0 * (-im*(p+q))*A'[2, -1, 5] * P'[1, 2, 6] * Vx2'[-3, 1] * QR_comm3[5, 6, 7, 8] * P[-2, 7, 3] * Vx1[3, 4] * ψtn[4, 8, -4] + 
+                                  k0 * (-im*(p+q))*A'[2, -1, 5] * P'[1, 2, 6] * Vx2'[-3, 1] * DQ[5, 7] * DR[6, 8] * (im*p)*A[-2, 7, 4] * P[4, 8, 3] * Vx1[3, -4] +
+                                  c * ψtn'[2, -1, 5] * P'[1, 2, 6] * Vx2'[-3, 1] * DR[5, 7] * DR[6, 8] * ψtn[-2, 7, 4] * P[4, 8, 3] * Vx1[3, -4] + 
+                                  c * P'[1, -1, 5] * Vx2'[2, 1] * ψtn'[-3, 2, 6] * DR[5, 7] * DR[6, 8] * ψtn[-2, 7, 4] * P[4, 8, 3] * Vx1[3, -4] + 
+                                  c * ψtn'[2, -1, 5] * P'[1, 2, 6] * Vx2'[-3, 1] * DR[5, 7] * DR[6, 8] * P[-2, 7, 3] * Vx1[3, 4] * ψtn[4, 8, -4] + 
+                                  c * P'[1, -1, 5] * Vx2'[2, 1] * ψtn'[-3, 2, 6] * DR[5, 7] * DR[6, 8] * P[-2, 7, 3] * Vx1[3, 4] * ψtn[4, 8, -4]
+    @test My ≈ -μ * tnp(W2, W1) +
+               k0 * tnp(comm(V2, R) + comm(Q, W2) + im*(p+q)*W2, comm(V1, R) + comm(Q, W1) + im*p*W1) + 
+               c * tnp(R*W2 + W2*R, R*W1 + W1*R)  
+    res4 = tr(exp(L*K) * My)
+
+    bbb = L*(res1 + res1_a + res2 + res3 + res4) 
+
+    @test aaa ≈ bbb
+end
+
+@timedtestset "test lieb liniger h tangent map; test for d=2" for ix in 1:10
     
     k0, μ, c = rand(3)
     χ, d, L = 2, 2, rand()
@@ -353,8 +483,10 @@ end
     # Mx's
     @tensor Mx1[-1, -2; -3, -4] := A'[-3, -1, 2] * P[-2, 2, 1] * Vx1[1, -4]
     @tensor Mx2[-1, -2; -3, -4] := P'[1, -1, 2] * Vx2'[-3, 1] * A[-2, 2, -4]
+    @tensor Mxx[-1, -2; -3, -4] := P'[1, -1, 3] * Vx2'[-3, 1] * DR[3, 4] * P[-2, 4, 2] * Vx1[2, -4] 
     @test Mx1 ≈ tnp(Iψ, V1) + tnp(Ra, Wa1) + tnp(Rb, Wb1)
     @test Mx2 ≈ tnp(V2, Iψ) + tnp(Wa2, Ra) + tnp(Wb2, Rb)
+    @test Mxx ≈ tnp(Wa2, Wa1) + tnp(Wb2, Wb1)
 
     # x != x' != y
     @tensor My[-1, -2; -3, -4] := -μ * ψtn'[-3, -1, 1] * DR[1, 2] * ψtn[-2, 2, -4] +
@@ -370,6 +502,10 @@ end
     quadgk(x1 -> quadgk(
         x2 -> exp(-im*(p+q)*x2) * exp(im*p*x1) * tr(My * exp(x1*K) * Mx1 * exp((x2 - x1)*K) * Mx2 * exp((L-x2)*K) ),
         x1, L)[1], 0, L)[1]
+
+
+    # y != x == x' 
+    res1_a = quadgk(x1 -> exp(-im*q*x1) * tr(My * exp(x1*K) * Mxx * exp((L-x1)*K)), 0, L)[1]
 
     # y == x != x'
     @tensor My[-1, -2; -3, -4] := -μ * ψtn'[-3, -1, 2] * DR[2, 3] * P[-2, 3, 1] * Vx1[1, -4] +
@@ -421,7 +557,7 @@ end
                     tnp(Rb*Wa2 + Wb2*Ra, Rb*Wa1 + Wb1*Ra))
     res4 = tr(exp(L*K) * My)
 
-    bbb = L*(res1 + res2 + res3 + res4) 
+    bbb = L*(res1 + res1_a + res2 + res3 + res4) 
 
     @test aaa ≈ bbb
 end

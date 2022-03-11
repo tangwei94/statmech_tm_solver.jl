@@ -14,7 +14,6 @@ using JLD2
 using Tullio
 using LoopVectorization
 
-using Suppressor
 using TensorKitAD
 using ChainRules
 using ChainRulesCore
