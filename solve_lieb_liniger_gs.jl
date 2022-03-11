@@ -12,7 +12,6 @@ using Plots
 using Optim
 using ChainRules
 using ChainRulesCore
-using Suppressor
 
 using Revise
 using statmech_tm_solver
@@ -24,8 +23,8 @@ c = 1
 μ = 1
 L = 50 
 d = 1
-nsteps1 = 10 # ordinary LBFGS steps
-nsteps2 = 200 # preconditioned LBFGS steps
+nsteps1 = 200 # ordinary LBFGS steps
+nsteps2 = 1000 # preconditioned LBFGS steps
 
 # cost function (energy) and its gradient
 function f(ψ_arr::Array{ComplexF64, 3})
@@ -40,7 +39,8 @@ end
 # construct the preconditioner
 function _precondprep!(P::preconditioner, ψ_arr::Array{ComplexF64, 3})
     ψ = convert_to_cmps(ψ_arr)
-    tol = norm(f'(ψ_arr)) / length(ψ_arr)
+    proj = gauge_fixing_proj(ψ, L)
+    tol = norm(proj' * convert_to_tensormap(f'(ψ_arr)))
     P1 = preconditioner(ψ, L; tol=tol)
     P.map = P1.map
     P.invmap = P1.invmap
@@ -53,8 +53,8 @@ end
 for χ in [2; 4; 8; 12; 16; 20]
     global ψm
 
-    #ψ0 = expand(ψm, χ, 0.01)
-    ψ0 = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)") |> convert_to_cmps
+    ψ0 = expand(ψm, χ, 0.01)
+    #ψ0 = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)") |> convert_to_cmps
 
     ψ_arr0 = convert_to_array(ψ0)
     E0 = energy_lieb_liniger(ψ0, c, L, μ)

@@ -806,7 +806,8 @@ function preconditioner(ψ::cmps, L::Real; tol::Real=1e-4, gauge::Symbol=:period
     proj = gauge_fixing_proj(ψ, L; gauge=gauge)
 
     V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
-    δ = norm(map(V)) / norm(V) * tol
+    #δ = norm(map(V)) / norm(V) * tol
+    δ = tol
 
     # sometimes KrylovKit raises error " LoadError: operator does not appear to be hermitian" here
     # it seems that δ cannot be too small.

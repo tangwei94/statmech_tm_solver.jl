@@ -25,7 +25,7 @@ L = 50
 d = 1
 
 #########################################################
-ψm = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi8") |> convert_to_cmps
+ψm = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi12") |> convert_to_cmps
 ψm = normalize(ψm, L, sym=false)
 E = energy_lieb_liniger(ψm, c, L, μ) 
 
@@ -43,9 +43,10 @@ k_value = tr(env * op_k) |> real
 
 plot(angle.(wvec) .- sign.(angle.(wvec)) .* pi, -real.(wvec), seriestype=:scatter)
 
-#shift = 0
-#for ix in -20:2
-    ix = 0# Int(L) ÷ 4 - 1
+ixs = -5:5
+Ees = []
+
+for ix in ixs
     gauge = :periodic
     p = ix * 2 * pi / L
     χ = get_chi(ψm)
@@ -62,6 +63,23 @@ plot(angle.(wvec) .- sign.(angle.(wvec)) .* pi, -real.(wvec), seriestype=:scatte
         return sum(tmpf.(Vn[msk], Wn[msk])) 
     end
 
-    Ee = eigsolve(sqrt_inv_nlop ∘ h_lop ∘ sqrt_inv_nlop, V0, 10, :SR; ishermitian=true)[1] ./ L
+    Ee = eigsolve(sqrt_inv_nlop ∘ h_lop ∘ sqrt_inv_nlop, V0, 5, :SR; ishermitian=true)[1] ./ L
+    @show ix, Ee
+    push!(Ees, Ee)
 
-#end
+end
+
+ks = [0]
+Es = [0]
+ixs[6]
+ΔE = Ees[6][1] - E
+
+for (ix, Ee) in zip(ixs, Ees)
+    global ps, Es
+    ks = cat(ks, [ix for Ei in Ee]; dims=1)
+    Es = cat(Es, (Ee .- E) / ΔE; dims=1)
+end
+plot(ks, Es, seriestype=:scatter)
+xlims!(-5, 5)
+ylims!(0, 20)
+yticks!(0:20)
