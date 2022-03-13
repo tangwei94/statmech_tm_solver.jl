@@ -39,9 +39,10 @@ end
 # construct the preconditioner
 function _precondprep!(P::preconditioner, ψ_arr::Array{ComplexF64, 3})
     ψ = convert_to_cmps(ψ_arr)
-    proj = gauge_fixing_proj(ψ, L)
-    tol = norm(proj' * convert_to_tensormap(f'(ψ_arr)))
-    P1 = preconditioner(ψ, L; tol=tol)
+    ψgrad = convert_to_tensormap(f'(ψ_arr), 2)
+    @show f(ψ_arr), norm(ψgrad)
+
+    P1 = preconditioner(ψ, ψgrad, L; gauge=:periodic)
     P.map = P1.map
     P.invmap = P1.invmap
     P.proj = P1.proj
@@ -53,8 +54,9 @@ end
 for χ in [2; 4; 8; 12; 16; 20]
     global ψm
 
-    ψ0 = expand(ψm, χ, 0.01)
-    #ψ0 = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)") |> convert_to_cmps
+    # important: random init or start with existing results
+    #ψ0 = expand(ψm, χ, 0.01)
+    ψ0 = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)") |> convert_to_cmps
 
     ψ_arr0 = convert_to_array(ψ0)
     E0 = energy_lieb_liniger(ψ0, c, L, μ)
@@ -62,8 +64,9 @@ for χ in [2; 4; 8; 12; 16; 20]
     res = optimize(f, g!, ψ_arr0, LBFGS(), Optim.Options(show_trace=true, iterations=nsteps1))
     ψ_arr = Optim.minimizer(res);
     ψm = convert_to_cmps(ψ_arr);
+    ψm_arr = convert_to_tensormap(f'(ψ_arr), 2);
 
-    P0 = preconditioner(ψm, L);
+    P0 = preconditioner(ψm, ψm_arr, L);
     res = optimize(f, g!, ψ_arr, LBFGS(P = P0, precondprep=_precondprep!), Optim.Options(show_trace=true, iterations=nsteps2))
     ψm = convert_to_cmps(Optim.minimizer(res));
 

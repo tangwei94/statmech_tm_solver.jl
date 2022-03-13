@@ -799,24 +799,24 @@ end
     
     construct the preconditioner for cmps `ψ` of length `L`.
 """
-function preconditioner(ψ::cmps, L::Real; tol::Real=1e-4, gauge::Symbol=:periodic)
+function preconditioner(ψ::cmps, ψgrad::TensorMap{ComplexSpace, 2, 1}, L::Real; gauge::Symbol=:periodic)
     χ, d = get_chi(ψ), get_d(ψ)
 
     map = tangent_map(ψ, L)
     proj = gauge_fixing_proj(ψ, L; gauge=gauge)
 
     V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
+    δ = 100*norm(proj' * ψgrad)^2 
     #δ = norm(map(V)) / norm(V) * tol
-    δ = tol
 
     # sometimes KrylovKit raises error " LoadError: operator does not appear to be hermitian" here
     # it seems that δ cannot be too small.
     try
         global Ws, Vs 
-        Ws, Vs = eigsolve(map, V, d*χ^2; tol=δ, krylovdim=d*χ^2, ishermitian=true)
+        Ws, Vs = eigsolve(map, V, d*χ^2; tol=0.1*δ, krylovdim=d*χ^2, ishermitian=true)
     catch e
         @show e
-        Ws, Vs = eigsolve(map, V, d*χ^2; tol=δ, krylovdim=d*χ^2)
+        Ws, Vs = eigsolve(map, V, d*χ^2; tol=0.1*δ, krylovdim=d*χ^2)
     end
 
     function invmap(V::TensorMap{ComplexSpace, 1, 1})
@@ -838,7 +838,7 @@ function precond_grad(P::preconditioner, ψgrad_arr::Array{ComplexF64, 3})
     d = size(ψgrad_arr)[2] - 1  
 
     # modulate tangent map: P.map -> P.map + δ * id
-    V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
+    #V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
     #δ = norm(P.map(V)) / norm(V) * 1e-4#; @show δ
     #f = (V -> P.map(V) + δ * V )
 
