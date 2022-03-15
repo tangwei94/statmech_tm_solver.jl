@@ -12,6 +12,8 @@ using Plots
 using Optim
 using ChainRules
 using ChainRulesCore
+using JLD2
+using Printf
 
 using Revise
 using statmech_tm_solver
@@ -19,11 +21,11 @@ using statmech_tm_solver
 #########################################################
 
 # parameters 
-c = 2
+c = 1
 μ = 1
 L = 50 
 d = 1
-χ = 20
+χ = 16
 
 #########################################################
 ψm = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)") |> convert_to_cmps
@@ -42,49 +44,51 @@ op_k = kinetic(ψm)
 k_value = tr(env * op_k) |> real
 γ = c / ρ_value
 
-plot(angle.(wvec) .- sign.(angle.(wvec)) .* pi, -real.(wvec), seriestype=:scatter)
+#plot(angle.(wvec) .- sign.(angle.(wvec)) .* pi, -real.(wvec), seriestype=:scatter)
 
-sort(real.(wvec))
+#sort(real.(wvec))
 
-ixs = -5:5
 Ees = []
-for ix in ixs
-    gauge = :periodic
-    p = ix * 2 * pi / L
-    χ = get_chi(ψm)
-    V0 = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
-    h_lop = lieb_liniger_h_tangent_map(ψm, p, 0, c, L, μ; gauge=gauge)
-    n_lop = tangent_map(ψm, L, p; gauge=gauge)
+kmax = L
+for k in -kmax:kmax 
+    p = k * 2 * pi / L
+    h_lop = lieb_liniger_h_tangent_map(ψm, p, 0, c, L, μ)
+    n_lop = tangent_map(ψm, L, p)
 
-    δ = 1e-8
-    Wn, Vn = eigsolve(n_lop, V0, d*χ^2; tol=δ, krylovdim=d*χ^2, ishermitian=true);
-
-    function sqrt_inv_nlop(V0::TensorMap{ComplexSpace, 1, 1})
-        tmpf = (Vx, Wx) -> Vx * tr(Vx' * V0) / sqrt(Wx)
-        msk = Wn .> δ
-        return sum(tmpf.(Vn[msk], Wn[msk])) 
+    h_lop_mat = zeros(ComplexF64, d*χ^2, d*χ^2)
+    n_lop_mat = zeros(ComplexF64, d*χ^2, d*χ^2)
+    Vr = TensorMap(zeros, ComplexF64, ℂ^(χ*d), ℂ^χ)
+    indices = reshape(1:d*χ^2, (d*χ, χ))
+    for ix in 1:d*χ
+        for iy in 1:χ
+            global Vr, h_lop_mat
+            @printf "k, ix, iy = %2d %2d %2d \r" k ix iy
+            Vr.data[ix, iy] = 1
+            h_lop_mat[:, indices[ix, iy]] = vec(h_lop(Vr).data)
+            n_lop_mat[:, indices[ix, iy]] = vec(n_lop(Vr).data)
+            Vr.data[ix, iy] = 0
+        end
     end
+    @assert h_lop_mat ≈ h_lop_mat'
+    @assert n_lop_mat ≈ n_lop_mat'
 
-    Ee, Ve = eigsolve(sqrt_inv_nlop ∘ h_lop ∘ sqrt_inv_nlop, V0, 5, :SR; ishermitian=true) 
-    Ee = Ee ./ L
-    @show ix, Ee
+    excitation_data = Dict("hlop" => h_lop_mat, "nlop" => n_lop_mat)
+    save("lieb_liniger_excitation_c$(c)_mu$(μ)_L$(L)_chi$(χ)_k$(k).jld2", excitation_data)
+
+    Ee = eigvals(h_lop_mat * inv(Hermitian(n_lop_mat))) ./ L
     push!(Ees, Ee)
-
 end
 
-Ees
-
-ks = [0]
-Es = [0]
-ixs[6]
-ΔE = Ees[6][1] - E
-
-for (ix, Ee) in zip(ixs, Ees)
-    global ps, Es
-    ks = cat(ks, [ix for Ei in Ee]; dims=1)
-    Es = cat(Es, (Ee .- E) / ΔE; dims=1)
-end
-plot(ks, Es, seriestype=:scatter)
-xlims!(-5, 5)
-ylims!(0, 20)
-yticks!(0:20)
+#ks = [0]
+#Es = [0]
+#ΔE = Ees[kmax+1][1] - E
+#
+#for (ix, Ee) in zip(ixs, Ees)
+#    global ps, Es
+#    ks = cat(ks, [ix for Ei in Ee]; dims=1)
+#    Es = cat(Es, (Ee .- E) / ΔE; dims=1)
+#end
+#plot(ks, real.(Es), seriestype=:scatter)
+#xlims!(-5, 5)
+#ylims!(0, 20)
+#yticks!(0:20)
