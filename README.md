@@ -5,4 +5,4 @@
 [![CI](https://github.com/tangwei94/statmech_tm_solver.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/tangwei94/statmech_tm_solver.jl/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/wei.tang.nju@gmail.com/statmech_tm_solver.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/wei.tang.nju@gmail.com/statmech_tm_solver.jl)
 
-NOTE. TensorKitAD.jl is not public yet. 
+depends on TensorKitAD.jl https://github.com/quantumghent/TensorKitAD.jl
