@@ -11,10 +11,14 @@ using Plots
 using Optim
 using ChainRules
 using ChainRulesCore
+using Printf
 
 using Revise
 using statmech_tm_solver
 
+function Base.show(io::IO, t::OptimizationState)
+    @printf io "%6d   %14.14e   %14e\n" t.iteration t.value t.g_norm
+end
 #########################################################
 
 # parameters 

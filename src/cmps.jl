@@ -807,6 +807,7 @@ function preconditioner(ψ::cmps, ψgrad::TensorMap{ComplexSpace, 2, 1}, L::Real
 
     V = TensorMap(rand, ComplexF64, ℂ^(χ*d), ℂ^χ)
     δ = 100*norm(proj' * ψgrad)^2 
+    @show norm(ψgrad), sqrt(δ)/10, δ
     #δ = norm(map(V)) / norm(V) * tol
 
     # sometimes KrylovKit raises error " LoadError: operator does not appear to be hermitian" here

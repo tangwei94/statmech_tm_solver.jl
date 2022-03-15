@@ -19,13 +19,14 @@ using statmech_tm_solver
 #########################################################
 
 # parameters 
-c = 1
+c = 2
 μ = 1
 L = 50 
 d = 1
+χ = 20
 
 #########################################################
-ψm = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi12") |> convert_to_cmps
+ψm = quickload("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)") |> convert_to_cmps
 ψm = normalize(ψm, L, sym=false)
 E = energy_lieb_liniger(ψm, c, L, μ) 
 
@@ -43,9 +44,10 @@ k_value = tr(env * op_k) |> real
 
 plot(angle.(wvec) .- sign.(angle.(wvec)) .* pi, -real.(wvec), seriestype=:scatter)
 
+sort(real.(wvec))
+
 ixs = -5:5
 Ees = []
-
 for ix in ixs
     gauge = :periodic
     p = ix * 2 * pi / L
@@ -63,11 +65,14 @@ for ix in ixs
         return sum(tmpf.(Vn[msk], Wn[msk])) 
     end
 
-    Ee = eigsolve(sqrt_inv_nlop ∘ h_lop ∘ sqrt_inv_nlop, V0, 5, :SR; ishermitian=true)[1] ./ L
+    Ee, Ve = eigsolve(sqrt_inv_nlop ∘ h_lop ∘ sqrt_inv_nlop, V0, 5, :SR; ishermitian=true) 
+    Ee = Ee ./ L
     @show ix, Ee
     push!(Ees, Ee)
 
 end
+
+Ees
 
 ks = [0]
 Es = [0]

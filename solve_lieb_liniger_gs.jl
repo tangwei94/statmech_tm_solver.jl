@@ -12,14 +12,18 @@ using Plots
 using Optim
 using ChainRules
 using ChainRulesCore
+using Printf
 
 using Revise
 using statmech_tm_solver
 
+function Base.show(io::IO, t::OptimizationState)
+    @printf io "%4d   %14.14e   %14.14e\n" t.iteration t.value t.g_norm
+end
 #########################################################
 
 # parameters 
-c = 1
+c = 2
 μ = 1
 L = 50 
 d = 1
@@ -40,7 +44,6 @@ end
 function _precondprep!(P::preconditioner, ψ_arr::Array{ComplexF64, 3})
     ψ = convert_to_cmps(ψ_arr)
     ψgrad = convert_to_tensormap(f'(ψ_arr), 2)
-    @show f(ψ_arr), norm(ψgrad)
 
     P1 = preconditioner(ψ, ψgrad, L; gauge=:periodic)
     P.map = P1.map
@@ -84,4 +87,3 @@ for χ in [2; 4; 8; 12; 16; 20]
     
     quicksave("lieb_liniger_c$(c)_mu$(μ)_L$(L)_chi$(χ)", convert_to_tensormap(ψm))
 end
-
